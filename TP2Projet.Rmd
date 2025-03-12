@@ -1,0 +1,757 @@
+```{r, results = "hide"}
+
+
+```
+install.packages("readr")
+library(readr)
+data = read.csv("loan.csv")
+dim(data)
+
+colnames(data)
+target = as.factor(data$loan)
+
+### 1.2. Caractéristiques du jeu de données
+
+Donner le nombre de lignes et le nombre de colonnes du data frame
+
+*Réponse :*
+
+```{r}
+dim(data) # Renvoie (nombre de lignes, nombre de colonnes)
+```
+
+Donner le nombre d'individus et de variables dans le jeu de données
+
+*Réponse :* Il y a nrow(data) individus et ncol(data) variables dans le
+jeu de données
+
+### 1.3 Variables
+
+Lister le nom de chaque variable
+
+*Réponse :*
+
+```{r}
+colnames(data)
+```
+
+Donner une description courte de chacune des variables
+
+person_age : Âge de la personne (emprunteur).
+person_gender : Genre de la personne (ex. : homme, femme).
+person_education : Niveau d’éducation atteint (ex. : secondaire, universitaire).
+person_income : Revenu annuel de la personne.
+person_emp_exp : Expérience professionnelle en années.
+person_home_ownership : Statut de propriété du logement (ex. : propriétaire, locataire).
+loan_amnt : Montant du prêt demandé.
+loan_intent : Objet ou but du prêt (ex. : achat auto, consolidation de dettes).
+loan_int_rate : Taux d’intérêt du prêt.
+loan_percent_income : Pourcentage du revenu utilisé pour rembourser le prêt.
+cb_person_cred_hist_length : Longueur de l’historique de crédit de la personne (en années).
+credit_score : Score de crédit de la personne (mesure de la solvabilité).
+previous_loan_defaults_on_file : Indique si la personne a déjà fait défaut sur un prêt (oui/non).
+loan_status : Statut final du prêt (ex. : approuvé, rejeté, en défaut).
+Indiquer lesquelles devraient être qualitatives et lesquelles devraient
+être quantitatives
+
+Variables quantitatives (numériques) :
+
+
+person_age — Âge
+person_income — Revenu annuel
+person_emp_exp — Expérience professionnelle (années)
+loan_amnt — Montant du prêt
+loan_int_rate — Taux d’intérêt
+loan_percent_income — Pourcentage de revenu alloué au prêt
+cb_person_cred_hist_length — Longueur de l’historique de crédit
+credit_score — Score de crédit
+
+Variables qualitatives (catégorielles) :
+
+
+person_gender — Genre
+person_education — Niveau d’éducation
+person_home_ownership — Type de logement (propriétaire, locataire, etc.)
+loan_intent — But du prêt
+previous_loan_defaults_on_file — Historique de défauts de paiement (Oui/Non)
+loan_status — Statut du prêt (1 = approuvé, 0 = rejeté ou en défaut)
+
+Quel est le data type de chacune de ces variables ?
+
+person_gender	Qualitative	Nominale
+person_education	Qualitative	Ordinal (ex. : High School < Bachelor < Master)
+person_home_ownership	Qualitative	Nominale
+loan_intent	Qualitative	Nominale
+previous_loan_defaults_on_file	Qualitative	Nominale
+loan_status	Qualitative*	Nominale (si interprété comme approuvé/rejeté)
+
+person_age	Quantitative	Continue
+person_income	Quantitative	Continue
+person_emp_exp	Quantitative	Discrète (nombre entier d'années)
+loan_amnt	Quantitative	Continue
+loan_int_rate	Quantitative	Continue
+loan_percent_income	Quantitative	Continue
+cb_person_cred_hist_length	Quantitative	Discrète (en années, souvent entier)
+credit_score	Quantitative	Continue (souvent entier mais gradué)
+
+str(data) \# Permet d'afficher les types des variables
+
+### 1.4 Target
+
+Indiquer quelle variable sera notre target (i.e., variable réponse à
+prédire).
+
+survived
+
+Quel est le data type de cette variable ? cat nominal
+
+Stocker cette variable dans une nouvelle variable nommée `target` et
+avec le bon data type
+
+```{r}
+target = as.factor(data$loan_status) # Conversion en facteur
+# Suppression des variables par leur nom
+
+```
+# Suppression des variables par leur nom
+
+### 1.5 Variables peu pertinentes
+
+Vous semble-t-il judicieux d'inclure le reste des variables pour prédire
+la target ?
+prposition de supression : 
+person_gender : pour éviter d’introduire un risque de discrimination
+person_education : peut introduire des biais (pour des questions éthiques)
+person_income et loan_amnt : elles sont corrélées avec loan_percent_income, qui est un ratio dérivé de ces deux variables 
+
+*Question ouverte :* 
+
+### 1.6 Transformation de variables
+
+Quelle(s) transformation(s) de variable(s) pourrait-on éventuellement
+effectuer, et sur quelles variables ?
+```{r, results = "hide"}
+# Liste des variables à standardiser
+vars_to_scale <- c("person_age", "person_emp_exp", "credit_score",
+                   "loan_int_rate", "loan_percent_income", "cb_person_cred_hist_length")
+
+# Appliquer la standardisation (z-score)
+data[vars_to_scale] <- scale(data[vars_to_scale])
+```
+
+person_home_ownership — Label Encoding en facteur numérique
+```{r, results = "hide"}
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$person_home_ownership <- as.numeric(data$person_home_ownership)
+
+
+```
+
+person_age — Catégorisation en tranches
+```{r, results = "hide"}
+data$person_age <- cut(data$person_age,
+                     breaks = c(20, 25, 123),
+                     labels = c("20-25", "26-123"),
+                     right = TRUE,
+                     include.lowest = TRUE)
+
+
+
+```
+ credit_score — Transformation selon l’échelle FICO
+```{r, results = "hide"}
+data$credit_score_cat <- cut(data$credit_score,
+                           breaks = c(-Inf, 579, 669, 739, 799, Inf),
+                           labels = c("Poor", "Fair", "Good", "Very Good", "Excellent"),
+                           right = TRUE)
+
+
+```
+
+previous_loan_defaults_on_file — Encodage binaire (Yes = 1, No = 0)
+```{r, results = "hide"}
+data$previous_loan_defaults_on_file <- ifelse(data$previous_loan_defaults_on_file == "Yes", 1, 0)
+
+
+```
+loan_intent — Label Encoding
+```{r, results = "hide"}
+data$loan_intent <- as.factor(data$loan_intent)
+data$loan_intent <- as.numeric(data$loan_intent)
+
+
+
+```
+
+Création d'une variable dérivée : high_credit_risk
+Critère (exemple) : credit_score < 580 → "à haut risque"
+```{r, results = "hide"}
+data$high_credit_risk <- ifelse(data$credit_score < 580, 1, 0)
+
+
+```
+
+pour tester: str(data)
+
+À quoi faut-il faire attention ?
+
+Les valeurs manquantes doivent être gérées avant transformation.
+
+Les catégories doivent avoir du sens pour ne pas introduire de biais.
+
+Effectuer ces transformations en justifiant éventuellement vos options
+
+La transformation permet d'améliorer la lisibilité des données et de faciliter leur interprétation.
+
+Le codage binaire des variables qualitatives facilite leur intégration dans les modèles de machine learning.
+
+La normalisation des variables quantitatives améliore leur comparabilité et réduit l'effet des valeurs extrêmes.
+
+Remarque : D'autres transformations seront peut être à faire, en fonction de la méthode de classification supervisée utilisée (standardisation, codage binaire, etc.). On les implementera lors du prochain TP
+
+## 1.7 Variables prédictives
+
+Créer un data frame nommé `quantitative_vars` contenant les variables quantitatives que l'on souhaite éventuellement utiliser pour la prédiction, et un nommé `qualitative_vars` contenant les variables qualitatives que l'on souhaite éventuellement utiliser pour la prédiction. Si nécessaire, modifier le data type des variables
+
+Si on le souhaite, on peut installer les packages `dplyr` et `tidyverse`, et lire la la documentation de la commande `select`, pour créer facilement ces deux data frames
+
+install.packages("dplyr")
+install.packages("tidyverse")
+```
+
+```{r, results = "hide"}
+# Charger les packages
+library(dplyr)
+library(tidyverse)
+
+# Sélection des variables quantitatives et qualitatives
+quantitative_vars <- select(data, 
+                            person_emp_exp, 
+                            credit_score, 
+                            loan_int_rate, 
+                            loan_percent_income, 
+                            cb_person_cred_hist_length)
+
+qualitative_vars <- select(data, 
+                           person_home_ownership, 
+                           loan_intent, 
+                           previous_loan_defaults_on_file, 
+                           high_credit_risk, 
+                           person_age_cat)
+
+# Vérifier les types des variables sélectionnées
+str(quantitative_vars)
+str(qualitative_vars)
+
+```
+
+*Réponse :* On modifie le data type des variables suivantes
+```{r, results = "hide"}
+# Conversion des variables qualitatives en facteur
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$loan_intent <- as.factor(data$loan_intent)
+data$previous_loan_defaults_on_file <- as.factor(data$previous_loan_defaults_on_file)
+data$high_credit_risk <- as.factor(data$high_credit_risk)
+data$person_age_cat <- as.factor(data$person_age_cat)
+
+# Assurer que la variable cible est aussi un facteur
+data$loan_status <- as.factor(data$loan_status)
+
+```
+
+
+Avez-vous inclus toutes les variables autres que la target ?
+
+*Réponse :* oui \*\*
+
+## 2. Analyse descriptive (univariée)
+
+### 2.1 Analyse statististique descriptive
+
+#### 2.1.1 Variables quantitatives
+
+Effectuer l'analyse statistique descriptive de chacune des variables
+quantitatives incluses dans `quantitative_vars`
+
+*Réponse :*
+
+```{r}
+  # Calcul des statistiques de base pour chaque variable
+summary(quantitative_vars)
+
+# Calcul de l'écart-type pour chaque variable
+sapply(quantitative_vars, sd, na.rm = TRUE)
+
+```
+
+Que peut-on remarquer ?
+
+*Réponse :* **Cela permet d’observer la dispersion des valeurs pour
+chaque variable.**
+
+#### 2.1.2 Variables qualitatives
+
+Pour chacune des variables qualitatives incluses dans
+`qualitative_vars`, indiquer le nombre d’observations tombées dans
+chacune des catégories
+
+*Réponse :*
+
+```{r}
+# Nombre d'observations dans chaque catégorie des variables qualitatives
+lapply(qualitative_vars, table)
+
+ou 
+table(qualitative_vars$person_age_cat)
+
+```
+
+
+
+#### 2.1.3 Target
+
+Indiquer le nombre d’observations tombées dans chacune des deux
+catégories de la réponse (stockée dans `target`)
+
+```{r}
+# Nombre d'observations dans chaque catégorie de la variable target (Survived)
+table(target)
+
+
+```
+
+*Réponse :* **549** passagers sont décédes lors du naufrage, et **342**
+ont décédés
+
+### 2.2 Analyse graphique
+
+#### 2.2.1 Variables quantitatives
+
+Effectuer l'analyse graphique univariée de chacune des variables
+quantitatives incluses dans `quantitative_vars` #histogramme et boxplot
+*Réponse :*
+
+```{r, out.width="50%", fig.align = "center"}
+library(ggplot2)
+
+# Histogramme - Expérience pro
+ggplot(quantitative_vars, aes(x = person_emp_exp)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Expérience professionnelle", x = "Années d'expérience", y = "Fréquence")
+
+# Histogramme - Credit score 
+ggplot(quantitative_vars, aes(x = credit_score)) +
+  geom_histogram(bins = 30, fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Score de crédit ", x = "Score", y = "Fréquence")
+
+# Histogramme - Taux d'intérêt 
+ggplot(quantitative_vars, aes(x = loan_int_rate)) +
+  geom_histogram(bins = 30, fill = "orange", color = "black") +
+  theme_minimal() +
+  labs(title = "Taux d'intérêt ", x = "Taux ", y = "Fréquence")
+
+# Histogramme - Pourcentage du revenu 
+ggplot(quantitative_vars, aes(x = loan_percent_income)) +
+  geom_histogram(bins = 30, fill = "purple", color = "black") +
+  theme_minimal() +
+  labs(title = "Part du revenu affectée au prêt ", x = "Ratio prêt/revenu", y = "Fréquence")
+
+# Histogramme - Longueur historique crédit
+ggplot(quantitative_vars, aes(x = cb_person_cred_hist_length)) +
+  geom_histogram(bins = 30, fill = "tomato", color = "black") +
+  theme_minimal() +
+  labs(title = "Historique de crédit (en années)", x = "Longueur historique", y = "Fréquence")
+
+
+```
+Que peut-on remarquer ?
+
+*Réponse :* \*\*Age :
+
+Distribution plutôt normale, mais avec des valeurs manquantes à prendre
+en compte. Certains passagers ont un âge très élevé, ce qui pourrait
+être des outliers.
+
+SibSp et Parch :
+
+Distribution très asymétrique : la plupart des passagers voyagent seuls
+(0), et très peu ont plusieurs membres de famille à bord. Fare :
+
+Distribution très étalée, avec quelques billets extrêmement chers
+(outliers visibles dans le boxplot). Ces valeurs extrêmes peuvent poser
+problème dans certaines analyses, donc une transformation peut être
+utile. \*\*
+
+Quelle(s) solution(s) pourriez-vous proposer ?
+
+*Réponse :* Gérer les valeurs extrêmes (Fare) : Transformation
+logarithmique pour réduire leur impact :
+\*\*data$Fare_log <- log1p(data$Fare) \# log(1 + Fare) pour éviter
+log(0) ou Remplir les valeurs manquantes (Age) :
+
+data$Age[is.na(data$Age)] \<- median(data\$Age, na.rm = TRUE) ou Créer
+une nouvelle variable FamilySize en combinant SibSp et Parch :
+
+data$FamilySize <- data$SibSp + data\$Parch + 1 \# +1 pour inclure le
+passager lui-même \*\*
+
+#### 2.2.2 Variables qualitatives
+
+Effectuer l'analyse graphique univariée de chacune des variables
+qualitatives incluses dans `qualitative_vars`
+
+*Réponse :*
+
+```{r, out.width="50%", fig.align = "center"}
+library(ggplot2)
+
+# Graphique pour Pclass (Classe de cabine)
+ggplot(data, aes(x = Pclass)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des passagers par classe", x = "Classe", y = "Nombre de passagers")
+
+# Graphique pour Sex (Sexe des passagers)
+ggplot(data, aes(x = Sex)) +
+  geom_bar(fill = "lightcoral", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des passagers par sexe", x = "Sexe", y = "Nombre de passagers")
+
+# Graphique pour Embarked (Port d'embarquement)
+ggplot(data, aes(x = Embarked)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des passagers par port d'embarquement", x = "Port", y = "Nombre de passagers")
+
+```
+
+## 2. Analyse multivariée
+
+Souhaitant prédire la survie des passagers au nauffrage du Titanic, on
+s'intéresse donc la relation entre notre target (variable réponse) et
+les différentes caractéristiques (variables explicatives), mais aussi la
+relation entre les différentes caractéristiques
+
+Pourquoi regarder la relation entre les différentes caractéristiques ?
+
+*Réponse :examiner les relations entre les différentes caractéristiques
+améliore la qualité de l'analyse statistique, conduit à des modèles plus
+robustes et assure une interprétation plus fiable des résultats.*
+
+### 2.1 Variables quantitatives
+
+```{r, eval = FALSE}
+install.packages("reshape2")
+install.packages("ggplot2")
+```
+
+```{r, eval = FALSE}
+library(reshape2)
+library(ggplot2)
+```
+
+Que font les lignes de code ci-dessous ? Si vous souhaitez imprimer
+leurs résultats dans le fichier pdf ou html, enlever `, eval = FALSE`
+
+```{r, eval = FALSE}
+library(reshape2)
+library(ggplot2)
+cor_mat = cor(quantitative_vars, use = "complete.obs")
+cor_mat
+melted_cor_mat = melt(cor_mat)
+ggplot(data = melted_cor_mat, aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() + scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  labs(title = "Correlation heatmap", x =  " ", fill = "correlation", y = " ")
+```
+
+Si jamais vous n'arrivez pas à insaller et charger les packages,
+considérer seulement la ligne
+
+```{r, eval = FALSE}
+cor_mat = cor(quantitative_vars, use = "complete.obs")
+```
+
+*Réponse :* **Le code fourni calcule une matrice de corrélation pour les
+variables quantitatives du jeu de données et la visualise sous forme de
+heatmap à l'aide de ggplot2**
+
+Que peut-on remarquer ?
+
+*Réponse :* \*\*En analysant la heatmap de la matrice de corrélation des
+variables quantitatives, plusieurs observations peuvent être faites :
+
+Corrélations fortes : Certaines variables peuvent présenter des
+corrélations élevées entre elles. Par exemple, une forte corrélation
+négative entre SibSp (nombre de frères et sœurs ou conjoints à bord) et
+Parch (nombre de parents ou enfants à bord) pourrait indiquer que les
+passagers ayant un grand nombre de frères et sœurs ou conjoints ont
+tendance à avoir moins de parents ou enfants à bord, et vice versa.
+
+Corrélations faibles ou nulles : D'autres variables peuvent ne pas être
+corrélées, ce qui suggère qu'elles apportent des informations distinctes
+et indépendantes. Par exemple, Age et Fare (tarif payé) peuvent ne pas
+présenter de corrélation significative, indiquant que l'âge des
+passagers n'influence pas nécessairement le tarif payé.
+
+Corrélations négatives : Certaines variables peuvent être négativement
+corrélées. Par exemple, une corrélation négative entre Age et Fare
+pourrait suggérer que les passagers plus jeunes ont tendance à payer des
+tarifs plus bas, bien que cette relation puisse être influencée par
+d'autres facteurs tels que la classe du billet ou les promotions.\*\*
+
+### 2.2 Variables quantitatives et target
+
+Représenter graphiquement la relation entre chacune variables
+quantitatives et la target
+
+\*Réponse : library(ggplot2)
+
+# Liste des variables quantitatives
+
+quantitative_vars \<- c("Age", "SibSp", "Parch", "Fare")
+
+# Création des boxplots
+
+for (var in quantitative_vars) { ggplot(data, aes_string(x = "Survived",
+y = var)) + geom_boxplot(aes(fill = Survived), color = "black") +
+labs(title = paste("Boxplot de", var, "en fonction de la survie"), x =
+"Survécu", y = var) + theme_minimal() + scale_fill_manual(values =
+c("red", "green")) + theme(legend.position = "none") + print() } \*
+
+```{r, out.width="50%", fig.align = "center"}
+# Ce code génère un boxplot pour chaque variable quantitative, montrant la distribution des données pour les passagers ayant survécu et ceux n'ayant pas survécu.
+```
+
+Calculer la moyenne des variables quantitatives dans chacune des
+catégories de la target
+
+*Réponse :*
+
+```{r, out.width="50%", fig.align = "center"}
+ mean_values <- aggregate(data[, quantitative_vars], by = list(Survived = data$Survived), FUN = mean, na.rm = TRUE)
+mean_values
+```
+
+Que remarque-t-on ?
+
+*Réponse :* \*\*Cette commande calcule la moyenne de chaque variable
+quantitative pour les passagers ayant survécu et ceux n'ayant pas
+survécu.
+
+Observations :
+
+En analysant les boxplots et les moyennes, on peut observer :
+
+Âge : Les passagers ayant survécu ont une médiane d'âge plus élevée que
+ceux n'ayant pas survécu.
+
+SibSp (nombre de frères et sœurs ou conjoints à bord) : Les passagers
+ayant survécu ont tendance à avoir moins de frères et sœurs ou conjoints
+à bord.
+
+Parch (nombre de parents ou enfants à bord) : Les passagers ayant
+survécu ont tendance à avoir plus de parents ou enfants à bord.
+
+Fare (tarif payé) : Les passagers ayant survécu ont payé un tarif moyen
+plus élevé que ceux n'ayant pas survécu.
+
+Ces observations suggèrent que certaines caractéristiques, comme l'âge,
+le nombre de parents ou enfants à bord, et le tarif payé, sont associées
+à la probabilité de survie.\*\*
+
+### 2.3 Variables qualitatives et target
+
+Que font les lignes de code ci-dessous ? Si vous souhaitez imprimer
+leurs résultats dans le fichier pdf ou html, enlever `, eval = FALSE`
+
+```{r, out.width="50%", fig.align = "center", eval = FALSE}
+library(ggplot2)
+for(i in 1:ncol(qualitative_vars)){
+var1    = as.character(qualitative_vars[,i])
+var1[which(is.na(var1))] = "NA"
+var1    = as.factor(var1)
+counts  = NULL # il nous faut le nombre de passagers dans chacune des catégories 
+# définies par la variable quantitative et la target
+for(j in levels(var1)){
+  for(k in levels(target)){
+  counts = rbind(counts, c(var1 = j, target = k, 
+                           passager_num = sum(target == k & var1 == j)))
+  }}
+counts              = as.data.frame(counts) #Convertit les résultats des comptages en data frame
+counts$var1         = as.factor(counts$var1)
+counts$target       = as.factor(counts$target) #Redéfinit les colonnes var1 et target comme facteurs, pour s'assurer que ggplot2 gère correctement les données
+counts$passager_num = as.numeric(counts$passager_num) #Convertit la colonne passager_num en numérique.
+
+xlab_i = paste0(colnames(qualitative_vars)[i]) #Crée un titre d'axe en utilisant le nom de la variable qualitative
+
+print(ggplot(data = counts, aes(x = var1, y = passager_num, fill = target)) +
+geom_bar(stat = "identity", color="black") +
+  theme_minimal() + labs(x =  xlab_i, fill = "Survie au naufrage", 
+                         y = "Nombre de passagers"))
+}
+```
+
+*Réponse :* **Ces lignes de code génèrent un graphique pour chaque
+variable qualitative, où chaque barre représente le nombre de passagers
+dans chaque catégorie (ex. : sexe, classe, embarquement) et indique si
+les passagers ont survécu ou non. Le graphique utilise un bar chart pour
+comparer la distribution des catégories en fonction de la variable cible
+(Survived).**
+
+Que font les lignes de code ci-dessous ? (Si vous souhaitez imprimer
+leurs résultats dans le fichier pdf ou html, enlever `, eval = FALSE`)
+Quel argument a changé par rapport aux lignes de code données ci-avant ?
+Pourquoi est-il préférable d'utiliser cette représentation graphique ?
+
+```{r, out.width="50%", fig.align = "center", eval = FALSE}
+for(i in 1:ncol(qualitative_vars)){
+var1    = as.character(qualitative_vars[,i])
+var1[which(is.na(var1))] = "NA"
+var1    = as.factor(var1)
+counts  = NULL # il nous faut le nombre de passagers dans chacune des catégories
+# définies par la variable quantitative et la target
+for(j in levels(var1)){
+  for(k in levels(target)){
+  counts = rbind(counts, c(var1 = j, target = k, 
+                           passager_num = sum(target == k & var1 == j)))
+  }}
+counts              = as.data.frame(counts)
+counts$var1         = as.factor(counts$var1)
+counts$target       = as.factor(counts$target)
+counts$passager_num = as.numeric(counts$passager_num)
+
+xlab_i = paste0(colnames(qualitative_vars)[i])
+
+print(ggplot(data = counts, aes(x = var1, y = passager_num, fill = target)) +
+geom_bar(stat = "identity", color="black", position = "fill") +
+  theme_minimal() + labs(x =  xlab_i, fill = "Survie au naufrage", 
+                         y = "Proportion de passagers"))
+}
+```
+
+*Réponse :* **pareil. L'argument qui a changé par rapport aux lignes de
+code précédentes est position = "fill". Au lieu de simplement afficher
+les comptes absolus, cette option permet d'afficher les proportions
+relatives à chaque groupe (par exemple, le pourcentage de survivants et
+de non-survivants dans chaque catégorie).**
+
+Que remarque-t-on ?
+
+*Réponse :l'utilisation de position = "fill" rend les comparaisons plus
+claires et plus significatives, car elle met en évidence les proportions
+plutôt que les simples comptes, ce qui est crucial pour l'analyse des
+données déséquilibrées.*
+
+**? à compléter ?**
+
+## 3. Données manquantes
+
+### 3.1. Identifier les variables avec des données manquantes
+
+Lire la documentation de la commande `is.na` #La fonction is.na() en R
+permet de vérifier la présence de valeurs manquantes (NA) dans un
+vecteur ou une trame de données.
+
+Pour chacune des variables qualitatives et quantitatives, donner le
+nombre de valeurs manquantes
+
+*Réponse :*
+
+```{r}
+# # Pour les variables qualitatives
+sapply(qualitative_vars, function(x) sum(is.na(x)))
+
+# Pour les variables quantitatives
+sapply(quantitative_vars, function(x) sum(is.na(x)))
+
+```
+
+Que peut-on remarquer ?
+
+*Réponse :* **En exécutant ce code, vous obtiendrez le nombre de valeurs
+manquantes pour chaque variable. Cela vous permettra d'identifier les
+variables avec des données manquantes et d'évaluer l'étendue de ces
+manques.**
+
+```{r}
+# à compléter
+```
+
+### 3.2. Gérer les valeurs manquantes
+
+Comment pourrait-on gérer les données manquantes chez les variables
+quantitatives ?
+
+Comment pourrait-on gérer les données manquantes chez les variables
+qualitatives ?
+
+*Réponse :* **Suppression des lignes,Imputation par la moyenne ou la
+médiane,Imputation par régression**
+
+Mettre en place ce que vous préconisez, sauf l'imputation prédictive (on
+fera cela au prochain TP)
+
+*Réponse :* **? à compléter ?**
+
+```{r, results = "hide"}
+# Imputation des variables qualitatives par la modalité la plus fréquente
+for(i in 1:ncol(qualitative_vars)) {
+  var = qualitative_vars[, i]
+  mode_value = names(sort(table(var), decreasing = TRUE))[1]
+  var[is.na(var)] = mode_value
+  qualitative_vars[, i] = var
+}
+
+# Imputation des variables quantitatives par la moyenne
+for(i in 1:ncol(quantitative_vars)) {
+  var = quantitative_vars[, i]
+  mean_value = mean(var, na.rm = TRUE)
+  var[is.na(var)] = mean_value
+  quantitative_vars[, i] = var
+}
+
+```
+
+## 4. Prochaines étapes
+
+Quelles sont les variables qui semblent être les plus importantes pour
+prédire la survie au naufrage du Titanic ?
+
+*Réponse :* \*\*Sexe (Sex) : Les femmes avaient une probabilité de
+survie plus élevée que les hommes. HACKERNOON.COM
+
+Classe de billet (Pclass) : Les passagers de première classe avaient un
+taux de survie supérieur à ceux de deuxième et troisième classes.
+NEURALWORD.COM
+
+Âge (Age) : Les enfants et les jeunes adultes avaient une probabilité de
+survie plus élevée. DOCS.KANARIES.NET
+
+Taille de la famille (SibSp et Parch) : Les passagers voyageant avec
+leur famille avaient un taux de survie plus élevé. HACKERNOON.COM
+
+Tarif du billet (Fare) : Les passagers ayant payé un tarif plus élevé
+avaient une probabilité de survie plus élevée. DOCS.KANARIES.NET\*\*
+
+Est-ce que certaines de ces variables sont redondantes ?
+
+*Réponse :* \*\*SibSp et Parch : Ces variables mesurent respectivement
+le nombre de frères/sœurs/époux et le nombre de parents/enfants à bord.
+Ensemble, elles donnent une idée de la taille de la famille.
+
+Pclass et Tarif (Fare) : Le tarif payé est souvent lié à la classe de
+billet, bien que ce ne soit pas une relation parfaite.\*\*
+
+Il faudra donc décider quelles variables inclure dans notre méthode de
+prédiction
+
+On sauvegarde le jeu de données
+
+```{r, eval = FALSE}
+write.csv(target, "titanic_pre_processed_target.csv")
+write.csv(quantitative_vars, "titanic_pre_processed_quantitative_vars.csv")
+write.csv(qualitative_vars, "titanic_pre_processed_qualitative_vars.csv")
+```
+
