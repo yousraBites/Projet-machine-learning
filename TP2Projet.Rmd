@@ -101,7 +101,7 @@ str(data) \# Permet d'afficher les types des variables
 Indiquer quelle variable sera notre target (i.e., variable réponse à
 prédire).
 
-survived
+ loan_status
 
 Quel est le data type de cette variable ? cat nominal
 
