@@ -70,6 +70,18 @@ colSums(is.na(data))
 colnames(data)
 boxplot(data$person_age, main = "Distribution de l'âge")
 
+#comptent le nombre de lignes dont l’âge (person_age) est supérieur ou égal à 100 .
+nrow(data[data$person_age > 100, ])
+length(which(data$person_age > 100))
+
+#donne les indices des lignes de ces personnes 
+which(data$person_age > 100)
+
+#on stocke dans une variables et on les supprime
+idx <- which(data$person_age > 100)
+data <- data[-idx, ]
+nrow(data[data$person_age > 100, ])
+
 
 ```
 
