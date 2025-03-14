@@ -114,7 +114,12 @@ knitr::opts_chunk$set(echo = TRUE)
     -   person_income et loan_amnt : elles sont corrélées avec loan_percent_income, qui est un ratio dérivé de ces deux variables 
 
 6.  Transformation des variables :
+         -  la standarisation des variables 
+       # Garder seulement les colonnes qui existent dans data
+        vars_to_scale <- intersect(vars_to_scale, colnames(data))
 
+        # Appliquer la standardisation (z-score) uniquement aux colonnes valides
+        data[vars_to_scale] <- scale(data[vars_to_scale])
     -   Transformation de target en factor :
 
         ```{r}
@@ -135,18 +140,34 @@ knitr::opts_chunk$set(echo = TRUE)
     -   La transformation de person_home_ownership et loan_intent en label encoding
 
         ```{r}
+data$loan_intent <- as.factor(data$loan_intent)
+data$loan_intent <- as.numeric(data$loan_intent)
 
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$person_home_ownership <- as.numeric(data$person_home_ownership)
         ```
 
     -   La discrétisation de person_age et credit_score :
 
         ```{r}
+```{r, results = "hide"}
+data$person_age <- cut(data$person_age,
+                     breaks = c(20, 25, 123),
+                     labels = c("20-25", "26-123"),
+                     right = TRUE,
+                     include.lowest = TRUE)
 
+
+data$credit_score_cat <- cut(data$credit_score,
+                           breaks = c(-Inf, 579, 669, 739, 799, Inf),
+                           labels = c("Poor", "Fair", "Good", "Very Good", "Excellent"),
+                           right = TRUE)
         ```
 
     -   La transformation de pevious_loan_defaults_on_file en binaire (yes = 1 et no=0)
 
         ```{r}
+data$previous_loan_defaults_on_file <- ifelse(data$previous_loan_defaults_on_file == "Yes", 1, 0)
 
         ```
 
