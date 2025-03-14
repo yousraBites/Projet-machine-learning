@@ -230,6 +230,39 @@ table(qualitative_vars$person_age_cat)
 2.  Analyse graphiques :
 
     a\. variables quantitatives :
+library(ggplot2)
+
+# Histogramme - Expérience pro
+ggplot(quantitative_vars, aes(x = person_emp_exp)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Expérience professionnelle", x = "Années d'expérience", y = "Fréquence")
+
+# Histogramme - Credit score 
+ggplot(quantitative_vars, aes(x = credit_score)) +
+  geom_histogram(bins = 30, fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Score de crédit ", x = "Score", y = "Fréquence")
+
+# Histogramme - Taux d'intérêt 
+ggplot(quantitative_vars, aes(x = loan_int_rate)) +
+  geom_histogram(bins = 30, fill = "orange", color = "black") +
+  theme_minimal() +
+  labs(title = "Taux d'intérêt ", x = "Taux ", y = "Fréquence")
+
+# Histogramme - Pourcentage du revenu 
+ggplot(quantitative_vars, aes(x = loan_percent_income)) +
+  geom_histogram(bins = 30, fill = "purple", color = "black") +
+  theme_minimal() +
+  labs(title = "Part du revenu affectée au prêt ", x = "Ratio prêt/revenu", y = "Fréquence")
+
+# Histogramme - Longueur historique crédit
+ggplot(quantitative_vars, aes(x = cb_person_cred_hist_length)) +
+  geom_histogram(bins = 30, fill = "tomato", color = "black") +
+  theme_minimal() +
+  labs(title = "Historique de crédit (en années)", x = "Longueur historique", y = "Fréquence")
+
+
 
     b\. variables qualitatives :
 
