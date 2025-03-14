@@ -124,14 +124,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
     -   person_income et loan_amnt : elles sont corrélées avec loan_percent_income, qui est un ratio dérivé de ces deux variables 
 
-6.  Transformation des variables :
 
+
+6.  Transformation des variables :
+         -  la standarisation des variables 
+       # Garder seulement les colonnes qui existent dans data
+        vars_to_scale <- intersect(vars_to_scale, colnames(data))
+
+        # Appliquer la standardisation (z-score) uniquement aux colonnes valides
+        data[vars_to_scale] <- scale(data[vars_to_scale])
     -   Transformation de target en factor :
 
         ```{r}
-        target=as.factor(data$loan_status, labels=c("approved", "rejected"))
+        target <- factor(
+          target,
+          levels = c(0, 1),
+          labels = c("approved", "rejected")
+        )
         class(target) 
-        target
         ```
 
     -   La transformation des variables catégorielles en factor :
@@ -143,18 +153,34 @@ knitr::opts_chunk$set(echo = TRUE)
     -   La transformation de person_home_ownership et loan_intent en label encoding
 
         ```{r}
+data$loan_intent <- as.factor(data$loan_intent)
+data$loan_intent <- as.numeric(data$loan_intent)
 
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$person_home_ownership <- as.numeric(data$person_home_ownership)
         ```
 
     -   La discrétisation de person_age et credit_score :
 
         ```{r}
+```{r, results = "hide"}
+data$person_age <- cut(data$person_age,
+                     breaks = c(20, 25, 123),
+                     labels = c("20-25", "26-123"),
+                     right = TRUE,
+                     include.lowest = TRUE)
 
+
+data$credit_score_cat <- cut(data$credit_score,
+                           breaks = c(-Inf, 579, 669, 739, 799, Inf),
+                           labels = c("Poor", "Fair", "Good", "Very Good", "Excellent"),
+                           right = TRUE)
         ```
 
     -   La transformation de pevious_loan_defaults_on_file en binaire (yes = 1 et no=0)
 
         ```{r}
+data$previous_loan_defaults_on_file <- ifelse(data$previous_loan_defaults_on_file == "Yes", 1, 0)
 
         ```
 
@@ -165,8 +191,41 @@ knitr::opts_chunk$set(echo = TRUE)
 1.  Analyse statistique descriptive :
 
     a\. variables quantitatives :
+quantitative_vars <- select(data, 
+                            person_emp_exp, 
+                            credit_score, 
+                            loan_int_rate, 
+                            loan_percent_income, 
+                            cb_person_cred_hist_length)
+
+ # Calcul des statistiques de base pour chaque variable
+summary(quantitative_vars)
+
+# Calcul de l'écart-type pour chaque variable
+sapply(quantitative_vars, sd, na.rm = TRUE)
 
     b\. variables qualitatives :
+qualitative_vars <- select(data, 
+                           person_home_ownership, 
+                           loan_intent, 
+                           previous_loan_defaults_on_file, 
+                           high_credit_risk)
+
+# Conversion des variables qualitatives en facteur
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$loan_intent <- as.factor(data$loan_intent)
+data$previous_loan_defaults_on_file <- as.factor(data$previous_loan_defaults_on_file)
+data$high_credit_risk <- as.factor(data$high_credit_risk)
+data$person_age_cat <- as.factor(data$person_age_cat)
+
+# Assurer que la variable cible est aussi un facteur
+data$loan_status <- as.factor(data$loan_status)
+
+# Nombre d'observations dans chaque catégorie des variables qualitatives
+lapply(qualitative_vars, table)
+
+ou 
+table(qualitative_vars$person_age_cat)
 
 2.  Analyse graphiques :
 
@@ -214,3 +273,54 @@ nrow(data[data$person_age > 100, ])
 ```{r}
 yousr = data[-c()]
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
