@@ -128,12 +128,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 6.  Transformation des variables :
          -  la standarisation des variables 
-       # Garder seulement les colonnes qui existent dans data
-        vars_to_scale <- intersect(vars_to_scale, colnames(data))
+      # Liste des variables numériques à standardiser
+numeric_vars <- c("person_age", "person_income", "person_emp_exp", 
+                  "loan_amnt", "loan_int_rate", "loan_percent_income", 
+                  "cb_person_cred_hist_length", "credit_score")
 
-        # Appliquer la standardisation (z-score) uniquement aux colonnes valides
-        data[vars_to_scale] <- scale(data[vars_to_scale])
-    -   Transformation de target en factor :
+# Appliquer la standardisation (z-score)
+data[numeric_vars] <- scale(data[numeric_vars])
+
+# Vérifier le résultat
+summary(data[numeric_vars])
 
         ```{r}
         target <- factor(
