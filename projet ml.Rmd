@@ -477,7 +477,14 @@ for (var in quantitative_vars) {
 
   print(p)  # Afficher le graphique correctement
 }
+Calculer la moyenne des variables quantitatives dans chacune des
+catégories de la target
 
+*Réponse :*
+
+```{r, out.width="50%", fig.align = "center"}
+ mean_values <- aggregate(data[, quantitative_vars], by = list(loan_status = data$loan_status), FUN = mean, na.rm = TRUE)
+mean_values
     ```
 
 3.  variables qualitatives et target :
