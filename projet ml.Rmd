@@ -441,6 +441,42 @@ ggplot(data = melted_cor_mat, aes(x = Var1, y = Var2, fill = value)) +
 2.  Variables quantitatives et target :
 
     ```{r}
+# Représenter graphiquement la relation entre chacune variables
+quantitatives et la target
+
+ library(ggplot2)
+
+# Liste des variables quantitatives
+
+quantitative_vars <- c("person_age", "person_income", "person_emp_exp", "loan_amnt","loan_int_rate","loan_percent_income","cb_person_cred_hist_length","
+credit_score")
+
+# Création des boxplots
+library(ggplot2)
+
+# Liste des variables quantitatives
+quantitative_vars <- c("person_age", "person_income", "person_emp_exp", "loan_amnt",
+                       "loan_int_rate", "loan_percent_income", "cb_person_cred_hist_length",
+                       "credit_score")
+
+# Boucle sur chaque variable quantitative
+for (var in quantitative_vars) {
+library(ggplot2)
+
+quantitative_vars <- c("person_age", "person_income", "person_emp_exp", "loan_amnt",
+                       "loan_int_rate", "loan_percent_income", "cb_person_cred_hist_length"
+                  )
+
+for (var in quantitative_vars) {
+  p <- ggplot(data, aes(x = factor(loan_status), y = get(var), fill = factor(loan_status))) +
+    geom_boxplot(color = "black") +
+    labs(title = paste("Boxplot de", var, "en fonction de loan_status"), x = "Loan Status", y = var) +
+    theme_minimal() +
+    scale_fill_manual(values = c("red", "green")) +
+    theme(legend.position = "none")
+
+  print(p)  # Afficher le graphique correctement
+}
 
     ```
 
