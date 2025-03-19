@@ -237,6 +237,10 @@ knitr::opts_chunk$set(echo = TRUE)
             include.lowest = TRUE,
             right = FALSE  # intervalles fermés à gauche et ouverts à droite : [300,580), [580,670), etc.
           )
+
+data$credit_score = as.factor(data$credit_score)
+    class(data$credit_score)
+    summary(data$credit_score)
         ```
 
     -   La transformation de pevious_loan_defaults_on_file en binaire
