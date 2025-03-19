@@ -149,15 +149,10 @@ knitr::opts_chunk$set(echo = TRUE)
     class(target)
 
 
-    #####Brouillon car ca marche pas pour moi
-    #credit_score
-    data$credit_score = cut(
-        data$credit_score,
-        breaks = c(300, 580, 670, 740, 800, 851),  # 851 permet d'inclure 850 dans le dernier intervalle
-        labels = c("faible", "moyen/limite", "bon", "très bon", "excellent"),
-        include.lowest = TRUE,
-        right = FALSE  # intervalles fermés à gauche et ouverts à droite : [300,580), [580,670), etc.
-      )
+  data$credit_score_cat <- cut(data$credit_score,
+                           breaks = c(300, 580, 670, 740, 800, 851),
+                           labels = c("faible", "moyen/limite", "bon", "très bon", "excellent"),
+                           right = TRUE)
     data$credit_score = as.factor(data$credit_score)
     class(data$credit_score)
     summary(data$credit_score)
