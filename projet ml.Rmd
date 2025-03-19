@@ -424,8 +424,18 @@ ggplot(data, aes(x = previous_loan_defaults_on_file)) +
 
 1.  Variables quantitatives :
 
-    ```{r}
+```{r, eval = FALSE}
 
+library(reshape2)
+library(ggplot2)
+cor_mat = cor(quantitative_vars, use = "complete.obs")
+cor_mat
+melted_cor_mat = melt(cor_mat)
+ggplot(data = melted_cor_mat, aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() + scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  labs(title = "Correlation heatmap", x =  " ", fill = "correlation", y = " ")
+
+```
     ```
 
 2.  Variables quantitatives et target :
