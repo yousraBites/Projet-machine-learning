@@ -385,7 +385,37 @@ data$credit_score = as.factor(data$credit_score)
     b\. variables qualitatives :
 
     ```{r}
+library(ggplot2)
 
+# Graphique pour person_education 
+ggplot(data, aes(x = person_education)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des personne par person_education", x = "person education", y = "Nombre de personnes")
+
+# Graphique pour person_gender 
+ggplot(data, aes(x = person_gender)) +
+  geom_bar(fill = "lightcoral", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des passagers par sexe", x = "Sexe", y = "Nombre de personnes")
+
+# Graphique pour person_home_ownership
+ggplot(data, aes(x = person_home_ownership)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des personnes par person_home_ownership", x = "person_home_ownership", y = "Nombre de personnes")
+
+# Graphique pour loan_intent
+ggplot(data, aes(x = loan_intent)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des personnes par loan_intent", x = "loan_intent", y = "Nombre de personnes")
+
+# Graphique pour previous_loan_defaults_on_file
+ggplot(data, aes(x = previous_loan_defaults_on_file)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Répartition des personnes par previous_loan_defaults_on_file", x = "previous_loan_defaults_on_file", y = "Nombre de personnes")
     ```
 
 ## **4. Analyse descriptive (multivariee):**
