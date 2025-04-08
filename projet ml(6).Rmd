@@ -1,0 +1,1536 @@
+---
+title: "Projet machine learning"
+author: "Yousra AMACHAT, Tomilli RAKOTOZAFY et Thiziri BENABDELAZIZ"
+date: "2025-02-25"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loan Approval Classification Dataset
+
+## **1. Description Générale**
+
+1.  Le contexte de notre jeu de données :
+
+    Ce jeu de données porte sur des demandes de prêts soumises à un
+    établissement financier. Chaque observation représente un individu
+    ayant sollicité un prêt, avec un ensemble de variables caractérisant
+    :
+
+    -   Les informations personnelles (âge, revenu, genre, statut
+        d’occupation du logement…)
+
+    -   L’expérience professionnelle
+
+    -   Le montant du prêt et son objectif,
+
+    -   L’historique de crédit (score, défauts précédents, etc.).
+
+    L’idée est donc de répertorier toutes ces informations afin de mieux
+    comprendre les profils des demandeurs et de prévoir la probabilité
+    d’acceptation ou de rejet du prêt.
+
+2.  Notre objectif :
+
+    L’objectif principal est de construire un modèle de classification
+    permettant de déterminer si un nouveau demandeur aura son prêt
+    approuvé (“loan_status”) ou non, en fonction des caractéristiques et
+    du comportement crédit de l’individu (âge, revenus, historique de
+    crédit, etc.).
+
+## **2. Jeu de données :**
+
+1.  Charger le jeu de données :
+
+    Notre jeu de données est sous format csv. Il offre une base
+    d’informations étendue sur les demandes de prêts soumises à un
+    établissement financier. Dès la première inspection, nous avons
+    identifié plusieurs anomalies notables : certains individus
+    présentaient des âges largement supérieurs à des valeurs réalistes
+    avec un maximum atteignant 144 ans, et des années d’expérience
+    professionnelle qui, dans certains cas, s’étendaient jusqu’à 101
+    ans. De tels enregistrements s’apparentent fortement à des erreurs
+    de saisie et risquent de biaiser notre analyse. Nous avons donc
+    choisi de supprimer les observations des individus dont l’âge
+    dépassait 100 ans pour maintenir la cohérence et la fiabilité de
+    notre jeu de données. Puis on a décidé de réduire notre data set a
+    5000 observation au lieu de 45 000 pour simplifier la tache, en
+    générant un échantillon aléatoire.
+
+    ```{r}
+    #charger le jeu de données depuis le fichier CSV
+    data=read.csv("C:\\Users\\yousr\\Desktop\\projet ml\\loan_data.csv") 
+
+    #suppression des lignes où l'âge dépasse 100 ans :
+    nrow(data[data$person_age > 100, ]) #afficher le nombre d'individus avec un âge > 100 ans
+    idx = which(data$person_age > 100)  #récupérer les indices des individus dont l'âge est supérieur à 100 ans  
+    data = data[-idx, ]  # supprimer ces lignes du jeu de données
+    nrow(data[data$person_age > 100, ]) #vérifier que plus aucune ligne n'a un âge > 100 ans
+
+    # réduction du jeu de données à un échantillon de 5000 observations :
+    set.seed(123) #fixer la graine pour obtenir le même échantillon à chaque exécution
+
+    data = data[sample(seq_len(nrow(data)), size = 5000), ] #extraire aléatoirement 5000 lignes du jeu de données.
+    ```
+
+2.  Caractéristiques de jeu de données :
+
+    ```{r}
+    dim(data) #les dimensions du jeu de données 
+    ```
+
+    Il y a 5000 individus et 14 variables dans ce jeu de données.
+
+3.  Variables :
+
+    ```{r}
+    colnames(data)  #noms des variables
+    head(data) #affiche les 6 premières lignes du jeu de données pour donner un aperçu de sa structure et de ses valeurs.
+    ```
+
+    ```{r}
+    sapply(data, class) # affiche le nom et la classe de chaque variable du jeu de données.
+    ```
+
+    Une description courte de chacune des variables et leur types :
+
+    -   Variables quantitatives (numériques) :
+
+        -   person_age : Âge de la personne, emprunteur.
+
+        -   person_income : Revenu annuel de la personne.
+
+        -   person_emp_exp : Expérience professionnelle en années.
+
+        -   loan_amnt : Montant du prêt demandé.
+
+        -   loan_int_rate : Taux d’intérêt du prêt.
+
+        -   loan_percent_income : Pourcentage du revenu utilisé pour
+            rembourser le prêt.
+
+        -   cb_person_cred_hist_length : Longueur de l’historique de
+            crédit de la personne (en années).
+
+        -   credit_score : Score de crédit de la personne (l’échelle
+            FICO).
+
+        -   loan_status : Statut final du prêt.
+
+    -   Variables qualitatives (catégorielles) :
+
+        -   person_gender : Genre de la personne.
+
+        -   person_education : Niveau d’éducation atteint.
+
+        -   person_home_ownership : Statut de propriété du logement.
+
+        -   loan_intent : Objet ou but du prêt.
+
+        -   previous_loan_defaults_on_file : Indique si la personne a
+            déjà fait défaut sur un prêt.
+
+4.  Target :
+
+    ```{r}
+    target = factor(data$loan_status, labels=c("rejeté", "approuvé") ) #transforme la target en factor
+    class(target) #affiche le type de target
+    ```
+
+    La variable qui sera le target est loan_status que nous l'avons
+    transforme en factor, car nous travaillons avec un modèle de
+    classification qui nécessite que la variable cible soit de type
+    catégoriel.
+
+5.  Variables peu pertinentes :
+
+    Avant de poursuivre notre analyse, nous avons jugé nécessaire
+    d’identifier d’autres variables pouvant être considérées comme moins
+    pertinentes, que ce soit en raison de risques de biais ou de
+    discrimination, ou encore de redondances liées à d’autres variables
+    plus informatives. Voici les variables concernées :
+
+    -   person_gender : pour éviter d’introduire un risque de
+        discrimination.
+
+    -   person_education : peut introduire des biais (pour des questions
+        éthiques).
+
+    -   person_income et loan_amnt : elles sont corrélées avec
+        loan_percent_income, qui est un ratio dérivé de ces deux
+        variables.
+
+    Après avoir identifié et écarté les variables susceptibles
+    d’introduire des biais ou des redondances, nous avons retenu
+    celles-ci, car chacune apporte une information spécifique et
+    essentielle pour prédire le statut du prêt :
+
+    -   person_age : l'âge reflète la maturité financière et la
+        stabilité, influençant la capacité de remboursement.
+
+    -   person_emp_exp : l'expérience professionnelle témoigne de la
+        stabilité de l'emploi et de la régularité des revenus.
+
+    -   loan_int_rate : le taux d'intérêt détermine le coût du prêt,
+        impactant la charge financière supportable par l'emprunteur.
+
+    -   loan_percent_income : ce ratio exprime le poids du prêt par
+        rapport au revenu, indiquant le niveau d'endettement.
+
+    -   cb_person_cred_hist_length : la durée de l'historique de crédit
+        offre une vision de l'expérience passée en matière de crédit et
+        de remboursement.
+
+    -   person_home_ownership : le statut de propriété du logement est
+        souvent associé à la stabilité financière et au risque de défaut
+        réduit.
+
+    -   loan_intent : l'objet du prêt renseigne sur le but de l'emprunt,
+        ce qui peut influer sur le risque perçu.
+
+    -   previous_loan_defaults_on_file : l'historique de défauts indique
+        directement un risque accru de non-remboursement.
+
+    -   credit_score : le score de crédit synthétise la solvabilité et
+        l'historique de paiement, étant un indicateur clé du risque de
+        crédit.
+
+6.  Transformation des variables :
+
+    Nous avons envisagé plusieurs transformations, telles que la
+    catégorisation de person_age et person_emp_exp ainsi que l'encodage
+    par label de person_home_ownership, mais nous avons constaté
+    qu'elles n'étaient pas pertinentes pour les classifieurs (KNN,
+    bayésien naïf et arbre de classification). Dons nous avons fait les
+    transformations que nous trouvons pertinentes ci-dessous.
+
+    1.  La discrétisation de credit_score selon l’échelle FICO :
+
+    ```{r}
+    library("ggplot2")  # charge la librairie ggplot2 pour la visualisation
+
+    ggplot(data, aes(x = credit_score, y = as.numeric(loan_status))) +
+      geom_point(alpha = 0.3) +  # ajoute des points avec une transparence de 0.3 pour afficher la dispersion des données
+      geom_smooth(method = "loess", color = "blue") +  # superpose une courbe de tendance en bleu, calculée par la méthode loess
+      labs(title = "Relation entre Credit Score et Loan Status",
+           x = "Score de Crédit",
+           y = "Probabilité d'Approbation")  # définit le titre du graphique et les libellés des axes
+    ```
+
+    La courbe ne montre pas de tendance clairement continue et
+    régulière. Une catégorisation permettrait de mieux identifier des
+    groupes distincts avec des probabilités d’approbation différentes.
+
+    1.  **l’échelle FICO :** est un système de notation de la
+        solvabilité, avec des scores allant généralement de 300 à 850,
+        permettant d’évaluer le risque de crédit d’un individu en
+        fonction de son historique de paiement, de son niveau
+        d’endettement et de la durée de ses antécédents financiers.
+
+        -   300 à 579 : Crédit “faible” (poor).
+
+        -   580 à 669 : Crédit “moyen/limite” (fair).
+
+        -   670 à 739 : Crédit “bon” (good).
+
+        -   740 à 799 : Crédit “très bon” (very good).
+
+        -   800 à 850 : Crédit “excellent” (exceptionnel).
+
+    ```{r}
+    data$credit_score = cut(
+        data$credit_score,
+        breaks = c(300, 580, 670, 740, 800, 851),  # 851 permet d'inclure 850 dans le dernier intervalle
+        labels = c("faible", "moyen", "bon", "très bon", "excellent"),
+        include.lowest = TRUE,
+        right = FALSE  # intervalles fermés à gauche et ouverts à droite : [300,580), [580,670), etc.
+    )
+    class(data$credit_score)
+    ```
+
+    2.  La transformation de pevious_loan_defaults_on_file en binaire
+        (yes = 1 et no=0)
+
+    ```{r}
+    data$previous_loan_defaults_on_file=1*(data$previous_loan_defaults_on_file == "Yes")
+    class(data$previous_loan_defaults_on_file)
+    ```
+
+    Nous avons transformé la variable previous_loan_defaults_on_file,
+    qui ne présentait que deux modalités (Yes  ou  No), en variable
+    binaire (1 ou 0) afin de faciliter son intégration dans les analyses
+    statistiques et les modèles de classification.
+
+    Apres les modifications précédentes on a :
+
+    -   Variables quantitatives (numériques) :
+
+        -   person_age
+
+        -   person_emp_exp
+
+        -   loan_int_rate
+
+        -   loan_percent_income
+
+        -   cb_person_cred_hist_length
+
+    -   Variables qualitatives (catégorielles) :
+
+        -   person_home_ownership
+
+        -   loan_intent
+
+        -   previous_loan_defaults_on_file
+
+        -   credit_score
+
+    3.  La transformation des variables catégorielles en factor :
+
+    ```{r}
+    #transformation de credit_score en factor
+    data$credit_score = as.factor(data$credit_score)
+    class(data$credit_score)
+
+    #transformation de data$person_home_ownership en factor
+    data$person_home_ownership = as.factor(data$person_home_ownership)
+    class(data$person_home_ownership)
+
+    #transformation de data$loan_intent en factor
+    data$loan_intent = as.factor(data$loan_intent)
+    class(data$loan_intent)
+
+    #transformation de credit_score en factor
+    data$previous_loan_defaults_on_file = as.factor(data$previous_loan_defaults_on_file)
+    class(data$previous_loan_defaults_on_file)
+    ```
+
+7.  Variables prédictives :
+
+    ```{r}
+    #contenant les variables qualitatives que l'on souhaite utiliser pour la prédiction
+    qualitative_vars = data.frame(cred_score=data$credit_score, home_own= data$person_home_ownership, intent=data$loan_intent, prev_def=data$previous_loan_defaults_on_file)
+
+    ##contenant les variables quantitatives que l'on souhaite utiliser pour la prédiction
+    quantitative_vars = data.frame(age=data$person_age, emp_exp = data$person_emp_exp, perc_inc=data$loan_percent_income, int_rate = data$loan_int_rate , cred_hist=data$cb_person_cred_hist_length)
+
+    sapply(data, class)
+    ```
+
+    Nous avons créé deux data frames qualitative_vars contenant les
+    variables qualitatives, et quantitative_vars contenant les variables
+    quantitatives, que nous souhaitons utiliser pour la prédiction.
+
+## **3. Analyse descriptive (univariée):**
+
+1.  Analyse statistique descriptive :
+
+    a\. Variables quantitatives :
+
+    L'analyse statistique descriptive de chacune des variables
+    quantitatives incluses dans quantitative_vars
+
+    ```{r}
+    summary(quantitative_vars) # affiche un résumé statistique
+    ```
+
+    On constate tout d’abord que la médiane d’âge (26 ans) est
+    relativement basse, laissant penser que la moitié de l’échantillon a
+    moins de 26 ans, ce qui suggère un public plutôt jeune. Par
+    ailleurs, certaines valeurs 0  pour l’expérience professionnelle
+    (person_emp_exp) peuvent correspondre à des données manquantes
+    recodées, mais nous l'avons considere comme des jeunes actifs aui
+    ont une experience moins d un an, car le person_emp_exp est en
+    année. De même, un ratio de prêt (loan_percent_income) à 0 % soulève
+    la question d’un revenu très élevé ou d’un montant de prêt
+    symbolique. La présence d’un taux d’intérêt pouvant aller jusqu’à
+    20 % laisse entrevoir des prêts de type subprime  ou à risque plus
+    élevé, ce qui peut influencer sur les décisions de crédit. Enfin, la
+    variable *cred_hist* témoigne d’un historique de crédit généralement
+    modéré, suggérant que la plupart des emprunteurs n’ont pas encore
+    accumulé un long passé financier, ce qui peut influencer les
+    décisions de crédit de manière plus nuancée.
+
+    b\. Variables qualitatives :
+
+    L'analyse statistique descriptive de chacune des variables
+    quantitatives incluses dans qualitative_vars
+
+    ```{r}
+    summary(qualitative_vars)
+    ```
+
+    On remarque que, pour la variable *credit_score*, la catégorie
+     excellent  est inexistante, et aue la majorité des dossiers se
+    situent dans les classes intermédiaires (faible, moyen, bon et tres
+    bon). Par ailleurs, la variable *previous_loan_defaults_on_file*
+    montre un équilibre presque parfait entre  yes  (2473) et no 
+    (2527), ce qui signifierait qu’environ la moitié des individus ont
+    déjà fait défaut. Un tel taux de défaut peut paraître élevé, mais il
+    se peut que le jeu de données soit spécifiquement orienté vers des
+    clients à risque, ce qui expliquerait cette répartition.
+
+    c\. Target :
+
+    Le nombre d’observations tombées dans les des deux catégories de la
+    réponse (`target`)
+
+    ```{r}
+    summary(target)
+    ```
+
+    Sur l’ensemble des demandes, 3 904 ont été rejetées et 1 096
+    approuvées. Cela traduit une répartition nettement inégale, avec
+    davantage de rejets que d’approbations dans le jeu de données. Cela
+    confirme que le jeu de données est spécifiquement orienté vers des
+    clients à risque.
+
+2.  Analyse graphiques :
+
+    a\. Variables quantitatives :
+
+    Pour les variables quantitatives on peut utiliser : l'histogramme et
+    boxplot
+
+    ```{r ,out.width="50%", fig.align = "center"}
+    # histogramme pour chaque variable quantitative
+    for(i in 1:ncol(quantitative_vars)){
+      main_i = paste0("Histogramme de ", colnames(quantitative_vars)[i])  # titre de l'histogramme
+      hist(quantitative_vars[,i], col = i+1, main = main_i, xlab = colnames(quantitative_vars)[i]) ## trace l'histogramme avec une couleur spécifique
+    }
+
+    # boxplot pour chaque variable quantitative
+    for(i in 1:ncol(quantitative_vars)){
+      main_i = paste0("Boxplot de ", colnames(quantitative_vars)[i])  # titre du boxplot
+      boxplot(quantitative_vars[,i], col = i+1, main = main_i, xlab = colnames(quantitative_vars)[i])
+    }
+    ```
+
+    -Interprétations des histogrammes :
+
+    -   person_age : l'histogramme montre une forte concentration des
+        âges autour de 20 à 30 ans, indiquant que la majorité des
+        emprunteurs sont jeunes.
+
+    -   person_emp_exp : l'histogramme révèle que la plupart des
+        individus ont une expérience professionnelle limitée,
+        principalement entre 0 et 10 ans.
+
+    -   loan_int_rate : l'histogramme indique que les taux d'intérêt se
+        regroupent autour d'une valeur médiane, suggérant une
+        distribution relativement symétrique.
+
+    -   loan_percent_income : l'histogramme montre que la majorité des
+        emprunteurs consacre une faible proportion de leur revenu au
+        remboursement du prêt, avec une concentration vers des valeurs
+        faibles.
+
+    -   cb_person_cred_hist_length : l'histogramme met en évidence que
+        la plupart des emprunteurs disposent d'un historique de crédit
+        court à modéré, généralement entre 2 et 8 ans.
+
+    -Interprétations des boxplots :
+
+    -   person_age : le boxplot montre que la majorité des emprunteurs
+        ont un âge concentré dans une plage étroite (autour de la
+        vingtaine à la trentaine) avec quelques valeurs extrêmes
+
+    -   person_emp_exp : le boxplot révèle que l'expérience
+        professionnelle est généralement faible, la plupart des
+        individus ayant quelques années d'expérience, avec quelques
+        outliers.
+
+    -   loan_int_rate : le boxplot de loan_int_rate indique une
+        distribution centrée autour d'une valeur médiane stable, avec
+        peu de valeurs aberrantes.
+
+    -   loan_percent_income : le boxplot montre que la majorité des
+        emprunteurs consacrent une faible proportion de leur revenu au
+        remboursement du prêt, bien que quelques cas présentent des
+        pourcentages plus élevés.
+
+    -   cb_person_cred_hist_length : le boxplot révèle que l'historique
+        de crédit des emprunteurs est majoritairement court à modéré,
+        avec une dispersion limitée et peu d'extrêmes.
+
+    ```{r, eval = FALSE}
+    for (v in colnames(quantitative_vars)) {
+      x <- quantitative_vars[[v]] # récupère la variable sous forme de vecteur
+      
+      stats_v <- boxplot.stats(x)$out  # calcule les outliers selon la règle de Tukey
+      
+      if (length(stats_v) > 0) {
+        cat("Variable:", v, "\n") 
+        cat("Nombre d'outliers:", length(stats_v), "\n")  
+        cat("Valeurs d'outliers:", stats_v, "\n\n")  
+      }
+    }
+    ```
+
+    La commande nous permet de connaître, pour chaque variable
+    quantitative, le nombre d'outliers identifiés selon la règle de
+    Tukey. Par exemple, pour person_age, on a trouvé 253 valeurs
+    considérées comme extrêmes, ce qui correspond bien aux points
+    extrêmes dans les boxplots. Ces valeurs extrêmes traduisent la
+    variabilité naturelle du jeu de données et nous semblent réalistes
+    dans le cadre de notre analyse, ce qui justifie notre décision de ne
+    pas les supprimer.
+
+    b\. variables qualitatives :
+
+    ```{r}
+    # Barplot 
+    # ajuste la marge inférieure pour accueillir des étiquettes longues
+    old_par <- par(mar = c(8, 4, 4, 2))  
+
+    for(i in 1:ncol(qualitative_vars)){
+      main_i <- paste0("Barplot de ", colnames(qualitative_vars)[i])
+      counts <- summary(qualitative_vars[, i])
+      barplot(counts,
+              col = 2:10,
+              main = main_i,
+              xlab = colnames(qualitative_vars)[i],
+              las = 2,         # labels en orientation verticale
+              cex.names = 0.7  # réduit la taille des étiquettes
+      )
+    }
+    ```
+
+-Interprétations des barplots :
+
+-   Le barplot de person_home_ownership montre que deux catégories de
+    statut de logement dominent (Rent et Morrtgage).
+
+-   Le barplot de loan_intent montre que la répartition des motifs
+    d’emprunt indique une prédominance des prêts destinés à l’éducation
+    et aux frais médicaux, devant la consolidation de dettes, les
+    projets personnels et l’amélioration de l’habitat.
+
+-   Le barplot de prev_def illustre une répartition presque équitable
+    entre les emprunteurs ayant déjà fait défaut et ceux n’ayant jamais
+    fait défaut, indiquant un risque de non-remboursement relativement
+    partagé.
+
+-   Le barplot de cred_score révèle une forte concentration de scores
+    “moyen” et “bon”, tandis que les catégories “très bon” et
+    “excellent” sont presque absentes, témoignant d’un niveau de
+    solvabilité globalement modéré.
+
+## **4. Analyse descriptive (multivariée):**
+
+1.  Variables quantitatives :
+
+    Nous utilisons la heatmap
+
+    ```{r}
+    #install.packages("ggplot2")
+
+    library(reshape2)  # pour la fonction melt()
+    library(ggplot2)   # pour ggplot()
+
+    #Calcul de la matrice de corrélation
+    cor_mat <- cor(quantitative_vars, use = "complete.obs")
+
+    #Transformation en format "long" pour ggplot
+    melted_cor_mat <- melt(cor_mat)
+
+    #Visualisation
+    ggplot(data = melted_cor_mat, aes(x = Var1, y = Var2, fill = value)) +
+      geom_tile() +
+      scale_fill_gradient2(low = "blue", mid = "white", high = "red")  +
+      labs(title = "Correlation Heatmap", x = "", y = "", fill = "Corrélation") +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.y = element_text(angle = 45, hjust = 1)
+      )
+    ```
+
+    La heatmap met en évidence des corrélations notables entre certaines
+    variables, notamment entre l’âge et l’expérience professionnelle.
+    Malgré cela, nous avons choisi de conserver ces variables, car
+    chacune apporte une information spécifique à la modélisation et ne
+    présente pas un niveau de multicolinéarité suffisamment élevé pour
+    justifier son exclusion.
+
+2.  Variables quantitatives et target :
+
+    ```{r}
+    for(i in 1:ncol(quantitative_vars)){
+      main_i = paste0("Boxplot de ", colnames(quantitative_vars)[i], 
+                      "\n en fonction de l'acceptation du credit ")
+      
+      ylab_i = paste0(colnames(quantitative_vars)[i])
+      
+      boxplot(quantitative_vars[,i] ~ target, col = c("pink", "lightblue"),
+              main = main_i, ylab = ylab_i, xlab = "Acceptation du credit")
+    }
+
+    wilcox.test(data$person_emp_exp ~ target, data = data)
+
+    ```
+
+    -Interprétations :
+
+    -   Le boxplot de la variable person_age en fonction de
+        l’acceptation du crédit montre que les distributions d’âge sont
+        assez proches dans les deux groupes (rejeté et approuvé), avec
+        une médiane concentrée autour de la vingtaine.
+
+    -   Pour la variable person_emp_exp, on observe que les médianes
+        d’expérience professionnelle des emprunteurs approuvés et
+        rejetés sont relativement proches, avec toutefois des outliers
+        particulièrement élevés dans les deux groupes, ce qui suggère
+        qu’un grand nombre d’années d’expérience n’est pas
+        nécessairement déterminant pour l’acceptation du crédit.
+
+    -   Le boxplot de perc_inc montre que le groupe "approuvé"  présente
+        une médiane plus élevée, suggérant qu’un ratio dette/revenu plus
+        important n’empêche pas forcément l’acceptation du crédit.
+
+    -   Le boxplot d’int_rate indique un taux d’intérêt médian
+        légèrement plus élevé pour le groupe " approuvé ", laissant
+        penser que certains profils plus risqués peuvent tout de même
+        obtenir leur prêt, mais à un coût supérieur.
+
+    -   Le boxplot de cred_hist souligne des distributions globalement
+        proches, bien que quelques valeurs extrêmes chez les emprunteurs
+        approuvés suggèrent qu’une ancienneté de crédit particulièrement
+        longue peut favoriser l’acceptation.
+
+    La moyenne des variables quantitatives dans chacune des catégories
+    de la target
+
+    ```{r}
+    for(i in 1:ncol(quantitative_vars)){
+      print(paste0("La moyenne pour la variable ", colnames(quantitative_vars)[i], 
+                   " parmi les credit aui sont approuves est de ", 
+                   round(mean(quantitative_vars[which(target == "approuvé"), i], 
+                              na.rm = TRUE), digits = 2)))
+      
+      print(paste0("La moyenne pour la variable ", colnames(quantitative_vars)[i], 
+                   " parmi les credit aui sont rejetes est de ", 
+                   round(mean(quantitative_vars[which(target == "rejeté"), i], 
+                              na.rm = TRUE), digits = 2)))
+    }
+    ```
+
+3.  variables qualitatives et target :
+
+    ```{r}
+    library(ggplot2)
+
+    for (i in 1:ncol(qualitative_vars)) {
+      var1 <- as.character(qualitative_vars[, i])
+      var1[is.na(var1)] <- "NA"      # remplace les NA par la chaîne "NA"
+      var1 <- as.factor(var1)
+      
+      # initialiser un data frame vide pour stocker les fréquences par modalité et par target
+      counts <- data.frame(
+        var1 = character(),
+        target = character(),
+        personnes_num = numeric(),
+        stringsAsFactors = FALSE
+      )
+      
+      # boucle pour remplir le data frame avec les fréquences de chaque modalité et de chaque target
+      for (j in levels(var1)) {
+        for (k in levels(target)) {
+          tmp <- data.frame(
+            var1 = j,
+            target = k,
+            personnes_num = sum(target == k & var1 == j),
+            stringsAsFactors = FALSE
+          )
+          counts <- rbind(counts, tmp)
+        }
+      }
+      
+      # conversion des colonnes en types appropriés
+      counts$var1 <- factor(counts$var1)
+      counts$target <- factor(counts$target)
+      counts$personnes_num <- as.numeric(counts$personnes_num)
+      
+      # création du barplot avec étiquettes inclinées
+      xlab_i <- paste0(colnames(qualitative_vars)[i])
+      p <- ggplot(data = counts, aes(x = var1, y = personnes_num, fill = target)) +
+        geom_bar(stat = "identity", color = "black") +
+        theme_minimal() +
+        labs(
+          x = xlab_i,
+          fill = "Credit approuvé",
+          y = "Nombre de personnes"
+        ) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))  # incliner les étiquettes de l'axe x
+      
+      print(p)
+    }
+    ```
+
+-Interprétations :
+
+-   La variable person_home_ownership, le barplot montre que la plupart
+    des emprunteurs se trouvent dans deux catégories majoritaires,
+     "MORTGAGE " et "RENT", tandis que "OWN" et "OTHER " sont nettement
+    moins fréquentes. Parmi les emprunteurs ayant un emprunt immobilier
+    (MORTGAGE) ou étant locataires (RENT), on observe un nombre notable
+    de rejets, mais aussi un certain volume d’approbations. En revanche,
+    la catégorie « OWN », qui pourrait indiquer une propriété totalement
+    acquise, est très peu représentée, tout comme "OTHER ". Cette
+    répartition suggère que la majorité des individus n’est pas
+    pleinement propriétaire de son logement, et que ce statut influe de
+    manière significative sur la décision d’approbation du prêt, bien
+    que d’autres facteurs entrent certainement en jeu.
+
+-   La variable loan_intent montre que certains motifs de prêt, comme
+    l’éducation et les dépenses médicales, se retrouvent plus souvent
+    que d’autres, par exemple l’amélioration de l’habitat ou les projets
+    venture. On remarque aussi que le taux d’approbation varie selon
+    l’objectif : certaines finalités du prêt semblent bénéficier d’un
+    taux d’acceptation plus élevé, indiquant que l’usage prévu du crédit
+    influence la décision de l’établissement financier.
+
+-   La variable previous_loan_defaults_on_file révèle que de nombreux
+    emprunteurs n'ont jamais fait défaut, et ils bénéficient d'un taux
+    d'approbation notable. En revanche, ceux qui présentent un
+    historique de défaut (Yes) sont un peu plus nombreux et affichent un
+    taux de rejet plus élevé, ce qui suggère que des antécédents de
+    défaut peuvent jouer en défaveur de l'approbation du crédit.
+
+-   La variable credit_score, divisée en catégories selon l’échelle
+    FICO, montre qu’une majorité d’emprunteurs se situe dans la
+    catégorie “moyen”, et qu’un nombre plus restreint est “faible” ou
+    “bon”, tandis que “très bon” est presque inexistant. On observe
+    également que le taux de rejet est plus élevé dans les catégories
+    “faible” et “moyen”, suggérant que plus le score est bas, plus la
+    probabilité de refus du prêt augmente.
+
+## **5. Données manquantes :**
+
+Notre jeu de donnees ne contient pas de données manquantes.
+
+```{r}
+for (i in 1:ncol(quantitative_vars)){
+  print(paste0("il manque la valeur de la variable ", colnames(quantitative_vars)[i]," chez ", sum(is.na(quantitative_vars[,i])), " personnes"))
+}
+
+print (" ------------------------------------------------------------------------")
+quantitative_vars <- data[, c(
+  "person_age",
+  "person_emp_exp",
+  "loan_percent_income",
+  "loan_int_rate",
+  "cb_person_cred_hist_length"
+), drop = FALSE]  # Extraire en tant que data frame
+
+for (i in 1:ncol(qualitative_vars)){
+  print(paste0("il manque la valeur de la variable ", colnames(qualitative_vars)[i]," chez ", sum(is.na(qualitative_vars[,i])), " personnes"))
+}
+
+
+
+# Après avoir fait toutes vos modifications sur 'data' (5000 lignes, etc.)
+write.csv(data, "loan_data_modified.csv", row.names = FALSE)
+
+```
+
+## 6. Classifieurs :
+
+Nous avons décidé de nous focaliser sur l'accuracy pour l'évaluation de
+notre modèle, sans négliger les autres métriques, car nous nous
+intéressons particulièrement aux vrais positifs et aux vrais négatifs.
+En effet, pour une banque, accorder un crédit à une personne susceptible
+de ne pas rembourser est problématique, tout comme refuser un crédit à
+un bon client peut être pénalisant.
+
+1.  Méthode des K plus proches voisins (KNN)
+
+    Nous allons construire un classifieur basé sur la méthode des K plus
+    proches voisins (KNN) pour prédire l’acceptation ou le refus d’un
+    prêt (Loan_Status). Cette approche repose sur la classification d’un
+    individu en fonction de ses K voisins les plus proches dans l’espace
+    des données.
+
+    Un élément clé de cette méthode est le choix du paramètre K, qui
+    détermine le nombre de voisins pris en compte pour la prédiction.
+    Afin d’évaluer efficacement le modèle, le jeu de données est divisé
+    en trois parties : une phase d’entraînement pour ajuster le modèle,
+    une phase de validation pour sélectionner la meilleure valeur de K
+    et une phase de test pour mesurer les performances finales du
+    classifieur.
+
+    -   Méthode des K plus proches voisins avec la holdout method
+
+    -Transformation des variables qualitatives en dummies
+
+    ```{r}
+    library("caret")
+    dummy <- dummyVars(~ ., data = qualitative_vars, fullRank = TRUE)
+    vars_dummy = data.frame(predict(dummy, newdata = qualitative_vars))
+    str(vars_dummy)  # Vérification
+    ```
+
+    -Création du data frame des prédicteurs en combinant variables
+    quantitatives et dummies
+
+    ```{r}
+    predictive_vars = cbind(
+          quantitative_vars,  # variables quantitatives sélectionnées
+          vars_dummy          # variables qualitatives transformées en dummies
+    )
+    ```
+
+    -Séparation en Train (80%) et le reste (20%) puis division le 20% en
+    validation 10% et test 10%
+
+    ```{r}
+    set.seed(123)  # Pour la reproductibilité
+    n = nrow(predictive_vars)   # Total d'observations (ici 5000)
+
+    # Indices pour l'ensemble d'entraînement (80% du total)
+    train_indices = sample(seq_len(n), size = round(0.8 * n), replace = FALSE)
+
+    predictive_vars_train = predictive_vars[train_indices, ]
+    target_train = target[train_indices]
+
+    # Le reste (20%) sera divisé en validation et test
+    remaining_data = predictive_vars[-train_indices, ]
+    target_remaining = target[-train_indices]
+
+    #division le 20% en validation 10% et test 10%
+    n_remaining = nrow(remaining_data)  # Environ 1000 observations
+    val_size = round(0.5 * n_remaining)  # 50% de ce bloc (~500 observations)
+
+    val_indices = sample(seq_len(n_remaining), size = val_size, replace = FALSE)
+
+    predictive_vars_validation = remaining_data[val_indices, ]
+    target_validation = target_remaining[val_indices]
+
+    predictive_vars_test = remaining_data[-val_indices, ]
+    target_test = target_remaining[-val_indices]
+
+    # Vérification des dimensions
+    cat("Dimensions train_data     :", dim(predictive_vars_train), "\n")  
+    cat("Dimensions validation_data:", dim(predictive_vars_validation), "\n") 
+    cat("Dimensions test_data      :", dim(predictive_vars_test), "\n") 
+    table(target_train)
+    table(target_remaining)
+    table(target_test)
+    table(target_validation)
+    ```
+
+    -La standardisation et la normalisation
+
+    ```{r}
+    library(MLmetrics)
+    library(Metrics) 
+    library(caret)
+
+    vars_to_scale <- c("person_age", "person_emp_exp", "loan_percent_income", "loan_int_rate", "cb_person_cred_hist_length")
+    proc <- preProcess(predictive_vars_train[, vars_to_scale], method = c("center", "scale"))
+
+    # Standardisation du train 
+    train_scaled <- predictive_vars_train
+    train_scaled[, vars_to_scale] <- predict(proc, newdata = predictive_vars_train[, vars_to_scale])
+
+    # Standardisation du validation
+    validation_scaled <- predictive_vars_validation
+    validation_scaled[, vars_to_scale] <- predict(proc, newdata = predictive_vars_validation[, vars_to_scale])
+
+    # Standardisation du test
+    test_scaled <- predictive_vars_test
+    test_scaled[, vars_to_scale] <- predict(proc, newdata = predictive_vars_test[, vars_to_scale])
+    test_scaled
+    validation_scaled 
+    train_scaled
+    ```
+
+    -Trouver le meuilleur K
+
+    ```{r}
+    findBestK_accuracy <- function(train_data, validation_data,
+                                       target_train, target_validation,
+                                       kGrid = 1:20,
+                                       positive_class = "rejeté") {
+          library(class)
+          library(MLmetrics)
+          
+          results <- data.frame(
+            k         = kGrid,
+            accuracy  = numeric(length(kGrid)),
+            recall    = numeric(length(kGrid)),
+            precision = numeric(length(kGrid)),
+            fscore    = numeric(length(kGrid))
+          )
+          
+          for (i in seq_along(kGrid)) {
+            k <- kGrid[i]
+            
+            pred <- knn(train = train_data,
+                        test  = validation_data,
+                        cl    = target_train,
+                        k     = k)
+            
+            acc  <- mean(pred == target_validation)
+            rec  <- Recall(y_pred     = pred, 
+                           y_true     = target_validation, 
+                           positive   = positive_class)
+            prec <- Precision(y_pred  = pred, 
+                              y_true  = target_validation, 
+                              positive= positive_class)
+            fs   <- ifelse((rec + prec) == 0, 0, 2 * rec * prec / (rec + prec))
+            
+            results$accuracy[i]  <- acc
+            results$recall[i]    <- rec
+            results$precision[i] <- prec
+            results$fscore[i]    <- fs
+          }
+          
+          # Choix du k qui maximise l'accuracy
+          best_k        <- results$k[which.max(results$accuracy)]
+          best_accuracy <- max(results$accuracy)
+          
+          return(list(
+            best_k        = best_k,
+            best_accuracy = best_accuracy,
+            results       = results
+          ))
+    }
+
+
+
+    ###### Utilisation de la fonction
+    bestK_result <- findBestK_accuracy(
+          train_data        = train_scaled,
+          validation_data   = validation_scaled,
+          target_train      = target_train,
+          target_validation = target_validation,
+          kGrid             = 1:20,
+          positive_class    = "rejeté"  
+    )
+
+    cat("Meilleur k (selon accuracy) =", bestK_result$best_k, "\n")
+    cat("Accuracy associée           =", bestK_result$best_accuracy, "\n")
+
+    # Visualiser toutes les métriques pour chaque k
+    print(bestK_result$results)
+    ```
+
+    \- Évaluation Finale sur le Test
+
+    ```{r}
+    # Fusion train + validation pour un entraînement final plus complet
+    final_train_data   <- rbind(train_scaled, validation_scaled)
+    final_train_target <- c(target_train, target_validation)
+
+    final_train_data   <- rbind(train_scaled, validation_scaled)
+    final_train_target <- c(target_train, target_validation)
+
+
+    # Modèle knn3
+    model_knn3 <- knn3(
+          x = final_train_data,   # data frame des prédicteurs
+          y = final_train_target, # vecteur factor
+          k = bestK_result$best_k
+    )
+
+    # On obtient les probabilités sur le test
+    prob_test <- predict(model_knn3, newdata = test_scaled, type = "prob")
+    head(prob_test)
+
+    pred_test_class <- predict(model_knn3, newdata = test_scaled, type = "class")
+
+    library(caret)
+    cm_test <- confusionMatrix(
+          data      = pred_test_class,  # vecteur factor de prédictions
+          reference = target_test,
+          positive  = "rejeté"          
+    )
+    cm_test
+
+    library(pROC)
+
+    roc_curve <- roc(
+          response  = target_test,               
+          predictor = prob_test[,"approuvé"],    
+          levels    = c("rejeté", "approuvé"),  
+          direction = "<"
+    )
+       
+    auc_value <- auc(roc_curve)  
+
+    # Tracer la courbe roc
+    plot(
+          roc_curve,
+          col  = "blue",
+          main = paste("Courbe ROC - AUC =", round(auc_value, 3)),
+          lwd  = 2
+    )
+    ```
+
+    -   Méthode des K plus proches voisins avec cross-validation pour
+        sélectionner le nombre de voisins
+
+    -Définir trainControl avec les options nécessaires pour obtenir les
+    probabilités et l'AUC
+
+    ```{r}
+    library(caret)
+    library(pROC)
+    library(MLmetrics)
+
+    train_control <- trainControl(
+          method = "cv",                
+          number = 10,                 
+          classProbs = TRUE,            
+          savePredictions = "all"       
+    )
+    ```
+
+    -Réentraîner le modèle k-NN en optimisant l'AUC (metric = "ROC")
+
+    ```{r}
+    set.seed(123)
+    model_knn <- train(
+          x = predictive_vars, 
+          y = target, 
+          method = "knn",                  # méthode k-NN
+          trControl = train_control,
+          preProcess = c("center", "scale"),# centrage et réduction
+          tuneGrid = expand.grid(k = 1:20),  # grille d'hyperparamètres
+          metric = "ROC"                   # optimisation basée sur l'AUC
+    )
+    ```
+
+    -Évaluation Finale
+
+    ```{r}
+    #Vérifier les prédictions sauvegardées (afin de confirmer le nom de la colonne contenant la probabilité de la classe positive)
+    head(model_knn$pred)
+
+    #Calculer la courbe ROC 
+    roc_curve <- roc(
+          response  = model_knn$pred$obs,
+          predictor = model_knn$pred$approuvé,  
+          levels    = c("rejeté", "approuvé"),
+          direction = "<"  
+    )
+
+    # Calcul de l'AUC
+    auc_value <- auc(roc_curve)
+
+    # 5. Tracer la courbe ROC
+    plot(roc_curve, col = "blue", lwd = 2,
+    main = paste("Courbe ROC - AUC =", round(auc_value, 3)))
+
+    #  Afficher le meilleur k sélectionné par la cross-validation
+    print(model_knn$bestTune)  # Affiche la valeur optimale de k
+
+    #  Consulter la table récapitulative des résultats pour chaque k
+    print(model_knn$results)
+
+    #  Extraire les prédictions issues de la cross-validation pour le meilleur k
+    best_k <- model_knn$bestTune$k
+    best_preds <- subset(model_knn$pred, k == best_k)
+
+    library(caret)
+    conf_mat <- confusionMatrix(
+    data = best_preds$pred,      
+          reference = best_preds$obs,  
+          positive = "rejeté"         
+    )
+    print(conf_mat)
+    ```
+
+    -   Performance et conclusion
+
+        Les deux modèles affichent des performances très proches, avec
+        une accuracy d'environ 0,89 pour chacun. De plus, leurs
+        capacités de prédiction sont similaires, ce qui suggère qu'ils
+        se comportent de manière équivalente. Autrement dit, sur
+        l'ensemble de validation/test, les deux approches se révèlent
+        tout aussi efficaces pour discriminer entre les classes.
+
+2.  Classifieur bayésien naïf
+
+    La méthode Naïves Bayésiennes consiste à calculer des probabilités
+    d’appartenance au deux catégories de la target pour chaque individu
+
+    -   Classifieur naïf bayésien avec partage du jeu de données en
+        Holdout
+
+        -Partage du jeu de données
+
+    ```{r}
+     # Charger les bibliothèques nécessaires
+    library(naivebayes)
+    predictive_vars1 <- cbind(
+      quantitative_vars,  # variables quantitatives sélectionnées
+      qualitative_vars          # variables qualitatives transformées en dummies
+    )
+
+    # Diviser les données
+    trainIndex1 <- createDataPartition(target, p = 0.8, list = FALSE)
+    trainData1 <- predictive_vars1[trainIndex1, ]  # Variables explicatives pour l'entraînement
+    tempData1  <- predictive_vars1[-trainIndex1, ] # Variables explicatives pour le test
+    target_train1 <- target[trainIndex1]           # Cible pour l'entraînement
+    target_test1  <- target[-trainIndex1]          # Cible pour le test
+
+    cat("Dimensions train_data     :", dim(trainData1), "\n")     
+    cat("Dimensions test_data      :", dim(tempData1), "\n")         
+    ```
+
+    -Phase d'apprentissage
+
+    ```{r}
+     # Convertir target_train en facteur car la variable cible doit toujours être un facteur en R
+        target_train1 <- as.factor(target_train1)
+
+        # Entraîner le modèle Naïve Bayes
+        classif1 <- naive_bayes(x = trainData1, y = target_train1, laplace = 1)
+
+        classif1 
+
+
+        pred1 <- predict(classif1, tempData1, type = "class") 
+    ```
+
+    Nous avons des variables qui présentent des probabilités nulles en
+    raison de valeurs nulles dans les données d'entraînement. C'est
+    pourquoi nous avons appliqué le lissage de Laplace (laplace = 1)
+    pour ajouter une petite valeur aux fréquences, évitant ainsi les
+    probabilités nulles.
+
+    ```{r, out.width="50%", fig.align = "center"}
+        # Sauvegarder les anciens paramètres pour les restaurer après
+        old_par <- par()
+
+        # Diminuer globalement la taille du texte
+        par(cex = 0.7)  
+
+        # Appeler le plot naivebayes
+        plot(classif1, prob = "conditional")
+
+        # Rétablir les anciens paramètres
+        par(old_par)
+
+    ```
+
+    La fonction `plot()` du package **naivebayes** n’offre pas de
+    paramètre pour incliner les étiquettes à un angle précis. C'est pour
+    cela nous pouvons pas voir clairement les noms des catégories
+
+    -Prédiction sur le jeu de données de test des probabilités
+    d'appartenir aux différentes catégories de la réponse
+
+    ```{r}
+    pred1 = predict(classif1, tempData1, type = "prob")
+    #Cette ligne effectue une prédiction sur les données de test avec un modèle Naïve Bayes et retourne les probabilités d'appartenance aux classes.
+    ```
+
+    -Prédiction de la target sur le jeu de données de test
+
+    ```{r}
+       # Prédiction de la target sur le jeu de test
+    target_pred1=predict(classif1, tempData1, type = "class")
+       
+        #Afficher l'accuracy
+    mean(target_pred1==target_test1) #accuracy
+        
+        #Afiicher le recall
+    recall_value1= recall(target_pred1,target_test1,relevant = "approuvé")
+    recall_value1
+        #Afficher la precision
+    precision_value1= precision(target_pred1,target_test1,relevant = "approuvé")
+    precision_value1
+        
+        #Afficher le F_1 Score
+    f1_score1 =  2 * ((precision_value1 * recall_value1) / (precision_value1 + recall_value1))
+    f1_score1
+
+    # Créer la matrice de confusion
+    confusionMatrix(data=target_pred1,reference = target_test1)$table
+
+    # Construction de la courbe roc et calcul de l'AUC
+
+    library(pROC)
+
+    pred_prob1 <- predict(classif1, tempData1, type = "prob") #Donne les probabilités d'appartenir à chaque classe
+    positive_probs1 = pred_prob1[,2]
+
+    # Calcul de la courbe ROC
+    roc_curve1 <- roc(target_test1,positive_probs1)
+
+    # Calcul de l'AUC
+    auc_value1 <- auc(roc_curve1)
+
+    # Tracer la courbe ROC avec le titre incluant l'AUC
+    plot(roc_curve1, main = paste("Courbe ROC - AUC:", round(auc_value, 3)), col = "blue", lwd = 2)
+    ```
+
+    Vu que nous nous focalisons sur les vrais positifs et les vrais
+    négatifs, le modèle prédit correctement les deux. Cela se traduit
+    par une accuracy de 0,87, ce qui est confirmé par notre matrice de
+    confusion.
+
+    -   Classifieur naïf bayésien avec 10-fold cross-validation pour
+        évaluer le classifieur
+
+    ```{r}
+     # Créer les indices pour la validation croisée
+        set.seed(1357)
+        nfolds1_kcross = 10
+        folds1_kcross = NULL
+        nobs = nrow(qualitative_vars)
+        for(i in 1:nobs){
+          folds1_kcross = c(folds1_kcross, sample (1:nfolds1_kcross, 1, replace= FALSE))
+        }
+        predictive_vars1
+
+            
+            
+
+            accuracy_fold1_kcross = NULL
+            recall_fold1_kcross = NULL
+            precision_fold1_kcross = NULL
+            f1_score_fold1_kcross =NULL
+           
+        # Boucle de validation croisée
+        for (fold in 1:nfolds1_kcross) {
+          # pour faire les itérations de la CV 
+          inFold1_kcross = which(folds1_kcross == fold)  # Indices pour le pli actuel
+          
+          # Sélectionner les données de test et d'entraînement pour ce pli
+          predictive_vars_test1_kcross = predictive_vars1[inFold1_kcross, ]  # Données de test
+          target_test1_kcross= target[inFold1_kcross]  # Cibles de test
+          predictive_vars_train1_kcross=predictive_vars1[-inFold1_kcross, ]  # Données d'entraînement
+          target_train1_kcross =target[-inFold1_kcross]  # Cibles d'entraînement
+           
+          # Entraîner le modèle Naïve Bayes
+          classif1_kcross <- naive_bayes(x = predictive_vars_train1_kcross, y = target_train1_kcross, laplace = 1)
+         # Prédictions sur le jeu de test
+          target_pred1_kcross <- predict(classif1_kcross, predictive_vars_test1_kcross, type = "class")
+          
+          #valeurs des valeurs:
+          accuracy_test1_kcross=(mean(target_pred1_kcross==target_test1_kcross))
+          recall_test1_kcross=(recall(target_pred1_kcross,target_test1_kcross,relevant="approuvé"))
+          precision_test1_kcross=precision(target_pred1_kcross,target_test1_kcross,relevant="approuvé")
+          f1_score_test1_kcross =  2 * ((precision_test1_kcross * recall_test1_kcross) / (precision_test1_kcross + recall_test1_kcross))
+          
+          accuracy_fold1_kcross=rbind(accuracy_fold1_kcross,accuracy_test1_kcross)
+          recall_fold1_kcross=rbind(recall_fold1_kcross,accuracy_test1_kcross)
+           precision_fold1_kcross=rbind(precision_fold1_kcross,accuracy_test1_kcross)
+           f1_score1_kcross=rbind(f1_score_fold1_kcross,f1_score_test1_kcross)
+        }
+            rownames(accuracy_fold1_kcross) = paste0("fold_",1:nfolds1_kcross)
+            rownames(recall_fold1_kcross) = paste0("fold_",1:nfolds1_kcross)
+            rownames(precision_fold1_kcross) = paste0("fold_",1:nfolds1_kcross)
+
+    #accuracy_fold1_kcross
+    #recall_fold1_kcross
+    #precision_fold1_kcross
+    #f1_score1_kcross
+
+    mean(accuracy_fold1_kcross)
+    mean(recall_fold1_kcross)
+    mean(precision_fold1_kcross)
+    mean(f1_score1_kcross)
+            
+            
+    # Calcul des métriques
+         confusionMatrix(target_pred1_kcross, target_test1_kcross)
+         
+         #courbe
+     
+        positive_probs1 = target_pred1_kcross
+    ```
+
+    -   Performance et conclusion
+
+    Le modèle naïf bayésien évalué par validation croisée affiche une
+    accuracy de 0,9, ce qui dépasse celle obtenue via la méthode holdout
+    (0,87). Même si les deux méthodes prédisent correctement les vrais
+    positifs et les vrais négatifs, la validation croisée permet de
+    mieux capter la variabilité inhérente aux données. En d'autres
+    termes, ce modèle offre une estimation plus fiable de la performance
+    globale, ce qui le rend particulièrement adapté aux décisions
+    bancaires.
+
+3.  Arbre de classification
+
+    L'arbre de classification classe les données en divisant
+    récursivement l'ensemble en sous-groupes basés sur des tests sur les
+    caractéristiques, jusqu'à attribuer une classe à chaque observation.
+
+    -   Avec holdout method
+
+    -Partage du jeu de données
+
+    ```{r}
+
+    set.seed(123) 
+
+    nobs= nrow(qualitative_vars)
+    inTrain2 = sample(1:nobs, size = round(0.8*nobs), replace = FALSE)
+    predictive_vars_test2    = predictive_vars1[-inTrain2,] 
+    target_test2             = target[-inTrain2]
+    predictive_vars_train2   = predictive_vars1[inTrain2,]
+    target_train2        = target[inTrain2]
+    dim(predictive_vars_test2)
+    dim(predictive_vars_train2)
+    ```
+
+    \- Vérifier que toutes les variables sont bien du bon data type
+
+    ```{r}
+    qualitative_vars$home_own = as.factor(qualitative_vars$home_own)
+    qualitative_vars$cred_score = as.factor(qualitative_vars$cred_score)
+    qualitative_vars$intent = as.factor(qualitative_vars$intent)
+    qualitative_vars$prev_def = as.factor(qualitative_vars$prev_def)
+
+    target = as.factor(target) 
+    ```
+
+    -Création de l'arbre
+
+    ```{r}
+    library(rpart)
+    library(rpart.plot)
+
+    classifTree = rpart(target_train2 ~ ., data = predictive_vars_train2, 
+                        method = "class")
+
+    rpart.plot(x=classifTree, type = 5, extra = 2, fallen.leaves = TRUE,  
+               main = "Arbre de prédiction de l'acceptation de prêt bancaire")
+    ```
+
+    \- Prédiction de la target avec l'arbre de décision sur le jeu de
+    données de test
+
+    ```{r}
+    #?predict.rpart
+    library(caret)
+    target_pred2 = predict(classifTree, predictive_vars_test2, type = "class")
+
+
+    mean(target_pred2 == target_test2)
+    recall2 = recall(data = target_pred2, reference = target_test2, relevant = "approuvé")
+    precision2 = precision(data = target_pred2,  reference = target_test2, relevant = "approuvé")
+    F1_score2 = 2 * (precision2 * recall2) / (precision2 + recall2)
+    F1_score2 
+
+    confusionMatrix(data=target_pred2,reference=target_test2)$tabl   
+
+    #construction de la courbe roc :
+    library(rpart)    
+    library(pROC)     
+    predicted_probs2= predict(classifTree, predictive_vars_test2, type = "prob")
+    positive_probs2 = predicted_probs2[,2]
+
+    roc_curve2 <- roc(target_test2, positive_probs2)
+    auc_value2 <- auc(roc_curve2)
+    print(auc_value2)
+    plot(roc_curve2, col = "blue", main = paste("Courbe ROC - AUC =", round(auc_value2, 3)), lwd = 2)
+
+    entropy <- function(target) {
+      # Calcul des proportions des classes
+      proportions <- table(target) / length(target)
+      
+      # Calcul de l'entropie
+      entropie <- -sum(proportions * log2(proportions), na.rm = TRUE)
+      
+      return(entropie)
+    }
+    entropy(target)
+
+    info_gain <- function(target, attribute) {
+      # Calcul de l'entropie de l'ensemble de départ
+      entropie_initiale <- entropy(target)
+
+      # Séparation des données selon les valeurs de l'attribut
+      valeurs_attribut <- unique(attribute)
+      entropie_apres_separation <- 0
+
+      for (val in valeurs_attribut) {
+        subset_target <- target[attribute == val]
+        proportion <- length(subset_target) / length(target)
+        entropie_apres_separation <- entropie_apres_separation + proportion * entropy(subset_target)
+      }
+
+      # Calcul du gain d'information
+      gain <- entropie_initiale - entropie_apres_separation
+      return(gain)
+    }
+
+
+    info_gain(target, predictive_vars1$cred_score)  # Calcul du gain d'information
+    ```
+
+    Une accuracy de 0,899 signifie que l'arbre de classification prédit
+    correctement près de 90 % des cas, ce qui est très encourageant.
+    Cela indique que le modèle parvient bien à distinguer les classes,
+    même s'il reste une petite marge d'erreur à améliorer.
+
+    -Élagage de l'arbre
+
+    ```{r}
+    classifTree$cptable
+    cp = min(classifTree$cptable[,"CP"])
+    cp
+    prunedTree = prune(classifTree, cp)
+    rpart.plot(
+      x = prunedTree,
+      type = 5,
+      extra = 2,
+      fallen.leaves = TRUE,
+      main = "Arbre de prediction elague de l'acceptation bancaire"
+    )
+
+    ```
+
+    --Prédiction de la target avec l'arbre élagué sur le jeu de données
+    de test
+
+    ```{r}
+    target_pred2 = predict(prunedTree, predictive_vars_test2, type = "class")
+
+    mean(target_pred2 == target_test2)
+    recall_2 = recall(data = target_pred2, reference = target_test2, relevant = "approuvé")
+    precision_2 = precision(data = target_pred2,  reference = target_test2, relevant = "approuvé")
+    F1_score2 = 2 * (precision_2 * recall_2) / (precision_2 + recall_2)
+    F1_score2 
+
+    predicted_probs= predict(prunedTree, predictive_vars_test2, type = "prob")
+    positive_probs = predicted_probs[,2]
+
+    #courbe
+    roc_curve2 <- roc(target_test2, positive_probs)
+    auc_value2 <- auc(roc_curve2)
+    print(auc_value2)
+    plot(roc_curve2, col = "blue", main = paste("Courbe ROC - AUC =", round(auc_value, 3)), lwd = 2)
+    ```
+
+    Le modèle prédit bien, puisque l'arbre obtenu reste identique, qu'il
+    soit élagué ou non.
+
+    -   Avec 10-fold cross-validation
+
+    -Sans élagage
+
+    ```{r}
+     set.seed(1357)
+        nfolds2_kcross      = 10
+
+        folds2_kcross = NULL
+        for(i in 1:nobs){
+          folds2_kcross = c(folds2_kcross,sample(1:nfolds2_kcross,1,replace=FALSE))
+        }
+
+        accuracy_fold2_kcross   = NULL
+        recall_fold2_kcross    = NULL
+        precision_fold2_kcross  = NULL
+        F1_score_fold2_kcross = NULL
+
+        for(fold in 1:nfolds2_kcross){ # pour faire les itérations de la CV
+          inFold2_kcross                  = which(folds2_kcross == fold)
+          
+          predictive_vars_test2_kcross    = predictive_vars1[inFold2_kcross,] # pour évaluer le modèle
+          target_test2_kcross             = target[inFold2_kcross]
+          predictive_vars_train2_kcross   = predictive_vars1[-inFold2_kcross,] # pour entrainer le modèle
+          target_train2_kcross            = target[-inFold2_kcross]
+          
+         
+          classifTree2_kcross = rpart(target_train2_kcross  ~ ., data = predictive_vars_train2_kcross, 
+                            method = "class")
+          target_pred2_kcross = predict(classifTree2_kcross, predictive_vars_test2_kcross, type = "class")
+          
+          accuracy_test2_kcross = mean(target_pred2_kcross == target_test2_kcross)
+          recall_test2_kcross= recall(data = target_pred2_kcross, reference = target_test2_kcross, relevant = "approuvé")
+          precision_test2_kcross = precision(data = target_pred2_kcross,  reference = target_test2_kcross, relevant = "approuvé")
+          F1_score_test2_kcross = 2 * (precision_test2_kcross * recall_test2_kcross) / (precision_test2_kcross + recall_test2_kcross)
+
+          
+         
+          accuracy_fold2_kcross = rbind(accuracy_fold2_kcross, accuracy_test2_kcross)
+          recall_fold2_kcross = rbind(recall_fold2_kcross, recall_test2_kcross)
+          precision_fold2_kcross = rbind(precision_fold2_kcross, precision_test2_kcross)
+          F1_score_fold2_kcross = rbind(F1_score_fold2_kcross, F1_score_test2_kcross)
+        }
+        rownames(accuracy_fold2_kcross) = paste0("fold_",1:nfolds2_kcross)
+        rownames(recall_fold2_kcross) = paste0("fold_",1:nfolds2_kcross)
+        rownames(precision_fold2_kcross) = paste0("fold_",1:nfolds2_kcross)
+        rownames( F1_score_fold2_kcross) = paste0("fold_",1:nfolds2_kcross)
+
+        accuracy_fold2_kcross
+        recall_fold2_kcross
+        precision_fold2_kcross
+        F1_score_fold2_kcross
+
+        mean(accuracy_fold2_kcross)
+        mean(recall_fold2_kcross)
+        mean(precision_fold2_kcross)
+        mean(F1_score_fold2_kcross)
+    ```
+
+    -Avec élagage
+
+    ```{r}
+    accuracy_fold2_kcross_A   = NULL
+    recall_fold2_kcross_A     = NULL
+    precision_fold2_kcross_A  = NULL
+    F1_score_fold2_kcross_A = NULL
+
+    for(fold in 1:nfolds2_kcross){ # pour faire les itérations de la CV
+      inFold2_kcross_A                  = which(folds2_kcross == fold)
+      
+      predictive_vars_test2_kcross_A    = predictive_vars1[inFold2_kcross_A,] # pour évaluer le modèle
+      target_test2_kcross_A             = target[inFold2_kcross_A]
+      predictive_vars_train2_kcross_A   = predictive_vars1[-inFold2_kcross_A,] # pour entrainer le modèle
+      target_train2_kcross_A            = target[-inFold2_kcross_A]
+     
+      classifTree2_kcross_A = rpart(target_train2_kcross_A ~ ., data = predictive_vars_train2_kcross_A, 
+                        method = "class")
+      cp2_kcross_A = classifTree2_kcross_A$cptable[which.min(classifTree2_kcross_A$cptable[, "xerror"]), "CP"]
+      cp2_kcross_A
+      prunedTree2_kcross_A = prune(classifTree2_kcross_A, cp2_kcross_A)
+      target_pred2_kcross_A = predict(prunedTree2_kcross_A, predictive_vars_test2_kcross_A, type = "class")
+      
+    accuracy_test2_kcross_A = mean(target_pred2_kcross_A == target_test2_kcross_A)
+      recall_test2_kcross_A= recall(data = target_pred2_kcross_A, reference = target_test2_kcross_A, relevant = "approuvé")
+      precision_test2_kcross_A = precision(data = target_pred2_kcross_A,  reference = target_test2_kcross_A, relevant = "approuvé")
+      F1_score_test2_kcross_A = 2 * (precision_test2_kcross_A * recall_test2_kcross_A) / (precision_test2_kcross_A + recall_test2_kcross_A)
+     
+      accuracy_fold2_kcross_A = rbind(accuracy_fold2_kcross_A, accuracy_test2_kcross_A)
+      recall_fold2_kcross_A = rbind(recall_fold2_kcross_A, recall_test2_kcross_A)
+      precision_fold2_kcross_A = rbind(precision_fold2_kcross_A, precision_test2_kcross_A)
+      F1_score_fold2_kcross_A = rbind(F1_score_fold2_kcross_A, F1_score_test2_kcross_A)
+    }
+    rownames(accuracy_fold2_kcross_A) = paste0("fold_",1:nfolds2_kcross)
+    rownames(recall_fold2_kcross_A) = paste0("fold_",1:nfolds2_kcross)
+    rownames(precision_fold2_kcross_A) = paste0("fold_",1:nfolds2_kcross)
+    rownames( F1_score_fold2_kcross_A) = paste0("fold_",1:nfolds2_kcross)
+
+    mean(accuracy_fold2_kcross_A)
+    mean(recall_fold2_kcross_A)
+    mean(precision_fold2_kcross_A)
+    mean(F1_score_fold2_kcross_A)
+    ```
+
+## 7. Conclusion :
+
+Sur la base des courbes ROC et des valeurs d’AUC observées (0,925 pour
+le k-NN, 0,909 pour le Naïf Bayésien et 0,927 pour l’arbre de décision),
+l’arbre de décision se révèle légèrement supérieur pour distinguer
+correctement les classes. Autrement dit, il parvient à mieux faire la
+part entre les emprunteurs « fiables » et ceux présentant un risque.
+Même si ces écarts restent modestes, l’arbre de décision semble offrir
+la meilleure combinaison de sensibilité et de spécificité, ce qui en
+fait le modèle le plus performant dans ce contexte.
